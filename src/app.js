@@ -1,6 +1,7 @@
 'use strict';
 
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const farmersRouter = require('./routes/farmers');
 const suppliersRouter = require('./routes/suppliers');
 const expensesRouter = require('./routes/expenses');
@@ -16,7 +17,17 @@ function createApp(db) {
   const app = express();
   app.use(express.json());
 
+  // Protect all data-mutating/reading API routes from abuse.
+  const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
+  app.use(apiLimiter);
 
   app.use('/farmers', farmersRouter(db));
   app.use('/suppliers', suppliersRouter(db));
