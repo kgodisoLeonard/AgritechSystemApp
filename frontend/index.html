@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agritech System App</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <h1>Agritech System App</h1>
+      </header>
+
+      <section class="status-panel">
+        <h2>System status</h2>
+        <p id="health-status">Checking backend...</p>
+      </section>
+
+      <section class="card">
+        <h2>Add crop record</h2>
+        <form id="crop-form">
+          <div class="field-group">
+            <label for="crop-name">Crop name</label>
+            <input id="crop-name" name="cropName" type="text" placeholder="e.g. Wheat" required />
+          </div>
+
+          <div class="field-group">
+            <label for="crop-status">Status</label>
+            <input id="crop-status" name="cropStatus" type="text" placeholder="e.g. Healthy" required />
+          </div>
+
+          <div class="field-group">
+            <label for="crop-region">Region</label>
+            <input id="crop-region" name="cropRegion" type="text" placeholder="e.g. East" required />
+          </div>
+
+          <button type="submit">Add crop</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Crop overview</h2>
+        <ul id="crop-list" class="crop-list"></ul>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
