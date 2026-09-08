@@ -1,0 +1,26 @@
+{
+  "name": "agritechsystemapp",
+  "version": "1.0.0",
+  "description": "A two-sided app that helps small-scale farmers track finances and form group orders with nearby farmers to unlock bulk pricing from suppliers.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "jest --runInBand"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://localhost:26831/kgodisoLeonard/AgritechSystemApp"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "jest": "^30.5.1",
+    "supertest": "^7.2.2"
+  }
+}
