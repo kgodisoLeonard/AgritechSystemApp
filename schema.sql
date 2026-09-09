@@ -1,0 +1,97 @@
+-- ============================================================
+-- Agri Tech Database Schema (PostgreSQL)
+-- Generated from Agri_Tech_Schema ER diagram
+-- ============================================================
+
+BEGIN;
+
+-- ------------------------------------------------------------
+-- farmers
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS farmers (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(150) NOT NULL,
+    location    VARCHAR(150),
+    contact     VARCHAR(100),
+    created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- ------------------------------------------------------------
+-- suppliers
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS suppliers (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(150) NOT NULL,
+    location    VARCHAR(150),
+    contact     VARCHAR(100)
+);
+
+-- ------------------------------------------------------------
+-- supplier_products  (1 supplier -> * products)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS supplier_products (
+    id              SERIAL PRIMARY KEY,
+    supplier_id     INTEGER NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+    product_name    VARCHAR(150) NOT NULL,
+    price           DECIMAL(12,2) NOT NULL CHECK (price >= 0)
+);
+
+-- ------------------------------------------------------------
+-- expenses  (1 farmer -> * expenses)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS expenses (
+    id          SERIAL PRIMARY KEY,
+    farmer_id   INTEGER NOT NULL REFERENCES farmers(id) ON DELETE CASCADE,
+    item        VARCHAR(150) NOT NULL,
+    category    VARCHAR(100),
+    amount      DECIMAL(12,2) NOT NULL CHECK (amount >= 0),
+    date        DATE NOT NULL DEFAULT CURRENT_DATE
+);
+
+-- ------------------------------------------------------------
+-- income  (1 farmer -> * income records)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS income (
+    id          SERIAL PRIMARY KEY,
+    farmer_id   INTEGER NOT NULL REFERENCES farmers(id) ON DELETE CASCADE,
+    item        VARCHAR(150) NOT NULL,
+    amount      DECIMAL(12,2) NOT NULL CHECK (amount >= 0),
+    date        DATE NOT NULL DEFAULT CURRENT_DATE
+);
+
+-- ------------------------------------------------------------
+-- group_orders  (1 supplier_product -> * group_orders)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS group_orders (
+    id                SERIAL PRIMARY KEY,
+    product_id        INTEGER NOT NULL REFERENCES supplier_products(id) ON DELETE CASCADE,
+    status            VARCHAR(50) NOT NULL DEFAULT 'open',
+    target_quantity   INTEGER NOT NULL CHECK (target_quantity > 0),
+    current_quantity  INTEGER NOT NULL DEFAULT 0 CHECK (current_quantity >= 0),
+    discount_rate     DECIMAL(5,2) DEFAULT 0 CHECK (discount_rate >= 0 AND discount_rate <= 100),
+    created_at        TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- ------------------------------------------------------------
+-- group_order_items  (1 group_order -> * items, 1 farmer -> * items)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS group_order_items (
+    id              SERIAL PRIMARY KEY,
+    group_order_id  INTEGER NOT NULL REFERENCES group_orders(id) ON DELETE CASCADE,
+    farmer_id       INTEGER NOT NULL REFERENCES farmers(id) ON DELETE CASCADE,
+    quantity        INTEGER NOT NULL CHECK (quantity > 0),
+    total_price     DECIMAL(12,2) NOT NULL CHECK (total_price >= 0),
+    joined_at       TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- ------------------------------------------------------------
+-- Helpful indexes for foreign keys / common lookups
+-- ------------------------------------------------------------
+CREATE INDEX IF NOT EXISTS idx_supplier_products_supplier_id ON supplier_products(supplier_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_farmer_id            ON expenses(farmer_id);
+CREATE INDEX IF NOT EXISTS idx_income_farmer_id               ON income(farmer_id);
+CREATE INDEX IF NOT EXISTS idx_group_orders_product_id        ON group_orders(product_id);
+CREATE INDEX IF NOT EXISTS idx_group_order_items_order_id     ON group_order_items(group_order_id);
+CREATE INDEX IF NOT EXISTS idx_group_order_items_farmer_id    ON group_order_items(farmer_id);
+
+COMMIT;
