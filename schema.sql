@@ -83,6 +83,28 @@ CREATE TABLE IF NOT EXISTS group_order_items (
     total_price     DECIMAL(12,2) NOT NULL CHECK (total_price >= 0),
     joined_at       TIMESTAMP NOT NULL DEFAULT NOW()
 );
+-- ------------------------------------------------------------
+-- ai_recommendations  (1 farmer -> * recommendations)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ai_recommendations (
+    id                    SERIAL PRIMARY KEY,
+    farmer_id             INTEGER NOT NULL REFERENCES farmers(id) ON DELETE CASCADE,
+    recommendation_text   TEXT NOT NULL,
+    category              VARCHAR(50) CHECK (category IN ('spending', 'group_order', 'pricing')),
+    created_at            TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- ------------------------------------------------------------
+-- notifications  (recipient can be a farmer or a supplier)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS notifications (
+    id              SERIAL PRIMARY KEY,
+    recipient_type  VARCHAR(20) NOT NULL CHECK (recipient_type IN ('farmer', 'supplier')),
+    recipient_id    INTEGER NOT NULL,
+    message         TEXT NOT NULL,
+    is_read         BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+);
 
 -- ------------------------------------------------------------
 -- Helpful indexes for foreign keys / common lookups
@@ -93,5 +115,7 @@ CREATE INDEX IF NOT EXISTS idx_income_farmer_id               ON income(farmer_i
 CREATE INDEX IF NOT EXISTS idx_group_orders_product_id        ON group_orders(product_id);
 CREATE INDEX IF NOT EXISTS idx_group_order_items_order_id     ON group_order_items(group_order_id);
 CREATE INDEX IF NOT EXISTS idx_group_order_items_farmer_id    ON group_order_items(farmer_id);
+CREATE INDEX IF NOT EXISTS idx_ai_recommendations_farmer_id   ON ai_recommendations(farmer_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_recipient        ON notifications(recipient_type, recipient_id);
 
 COMMIT;
