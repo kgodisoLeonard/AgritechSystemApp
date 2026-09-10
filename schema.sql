@@ -63,4 +63,3 @@ BEGIN
     VALUES (p_recipient_type, p_recipient_id, p_message, FALSE, NOW());
 END;
 $$ LANGUAGE plpgsql;
-
