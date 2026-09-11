@@ -142,12 +142,29 @@ CREATE OR REPLACE FUNCTION join_group_order(
     p_total_price DECIMAL(12,2)
 )
 RETURNS VOID AS $$
+DECLARE
+    v_current_quantity INTEGER;
+    v_target_quantity INTEGER;
 BEGIN
+    SELECT current_quantity, target_quantity
+    INTO v_current_quantity, v_target_quantity
+    FROM group_orders
+    WHERE id = p_group_order_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Group order % does not exist', p_group_order_id;
+    END IF;
+
+    IF v_current_quantity + p_quantity > v_target_quantity THEN
+        RAISE EXCEPTION 'Group order % exceeds target quantity', p_group_order_id;
+    END IF;
+
     INSERT INTO group_order_items (group_order_id, farmer_id, quantity, total_price, joined_at)
     VALUES (p_group_order_id, p_farmer_id, p_quantity, p_total_price, NOW());
 
     UPDATE group_orders
-    SET current_quantity = current_quantity + p_quantity
+    SET current_quantity = v_current_quantity + p_quantity
     WHERE id = p_group_order_id;
 END;
 $$ LANGUAGE plpgsql;
@@ -183,22 +200,27 @@ CREATE OR REPLACE FUNCTION calculate_monthly_profit(
 )
 RETURNS NUMERIC AS $$
 DECLARE
+    v_month_start DATE;
+    v_next_month DATE;
     total_income NUMERIC;
     total_expense NUMERIC;
 BEGIN
+    v_month_start := MAKE_DATE(p_year, p_month, 1);
+    v_next_month := (v_month_start + INTERVAL '1 month')::DATE;
+
     SELECT COALESCE(SUM(amount), 0)
     INTO total_income
     FROM income
     WHERE farmer_id = p_farmer_id
-      AND EXTRACT(YEAR FROM date) = p_year
-      AND EXTRACT(MONTH FROM date) = p_month;
+      AND date >= v_month_start
+      AND date < v_next_month;
 
     SELECT COALESCE(SUM(amount), 0)
     INTO total_expense
     FROM expenses
     WHERE farmer_id = p_farmer_id
-      AND EXTRACT(YEAR FROM date) = p_year
-      AND EXTRACT(MONTH FROM date) = p_month;
+      AND date >= v_month_start
+      AND date < v_next_month;
 
     RETURN total_income - total_expense;
 END;
