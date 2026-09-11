@@ -126,6 +126,17 @@ BEGIN
     END;
 
     BEGIN
+        PERFORM join_group_order(v_group_order_id, v_farmer_id, 0, 0.00);
+        RAISE EXCEPTION 'join_group_order should fail for non-positive quantities';
+    EXCEPTION
+        WHEN OTHERS THEN
+            GET STACKED DIAGNOSTICS v_error_message = MESSAGE_TEXT;
+            IF v_error_message NOT LIKE 'Quantity must be greater than 0.%' THEN
+                RAISE;
+            END IF;
+    END;
+
+    BEGIN
         PERFORM join_group_order(v_closed_group_order_id, v_farmer_id, 1, 558.00);
         RAISE EXCEPTION 'join_group_order should fail when the group order is not open';
     EXCEPTION
