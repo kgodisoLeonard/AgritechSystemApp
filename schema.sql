@@ -139,9 +139,9 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION group_order_join_lock_namespace()
 RETURNS INTEGER AS $$
 BEGIN
-    RETURN 7201;
+    RETURN hashtext(current_database() || ':group_order_join');
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql STABLE;
 
 CREATE OR REPLACE FUNCTION join_group_order(
     p_group_order_id INTEGER,
