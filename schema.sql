@@ -150,7 +150,7 @@ DECLARE
     v_discounted_unit_price NUMERIC(12,2);
     v_expected_total_price NUMERIC(12,2);
 BEGIN
-    PERFORM pg_advisory_xact_lock(7201, p_group_order_id);
+    PERFORM pg_advisory_xact_lock('group_orders'::REGCLASS::INTEGER, p_group_order_id);
 
     SELECT go.target_quantity,
            go.status,
