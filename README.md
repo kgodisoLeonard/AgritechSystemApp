@@ -74,14 +74,14 @@ psql -h <host> -U <user> -d <database> -f seed.sql   # optional
 
 ## 5. Validate helper functions
 
-After loading `schema.sql` and `seed.sql`, you can run:
+After loading `schema.sql`, you can run:
 
 ```bash
 psql -h <host> -U <user> -d <database> -f schema_validation.sql
 ```
 
-The script runs transactional smoke checks for repeated group-order joins and
-monthly profit boundaries, then rolls everything back.
+The script creates its own temporary validation records, checks repeated
+group-order joins and monthly profit boundaries, then rolls everything back.
 
 ## Notes
 
