@@ -189,7 +189,11 @@ BEGIN
         joined_at = NOW();
 
     UPDATE group_orders
-    SET current_quantity = current_quantity + p_quantity
+    SET current_quantity = COALESCE((
+        SELECT SUM(quantity)
+        FROM group_order_items
+        WHERE group_order_id = p_group_order_id
+    ), 0)
     WHERE id = p_group_order_id;
 END;
 $$ LANGUAGE plpgsql;
