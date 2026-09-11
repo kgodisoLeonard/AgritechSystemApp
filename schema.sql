@@ -214,7 +214,13 @@ BEGIN
         RAISE EXCEPTION 'Month must be between 1 and 12. Got %', p_month;
     END IF;
 
-    v_month_start := MAKE_DATE(p_year, p_month, 1);
+    BEGIN
+        v_month_start := MAKE_DATE(p_year, p_month, 1);
+    EXCEPTION
+        WHEN datetime_field_overflow THEN
+            RAISE EXCEPTION 'Year must be supported by PostgreSQL date values. Got %', p_year;
+    END;
+
     v_next_month := (v_month_start + INTERVAL '1 month')::DATE;
 
     SELECT COALESCE(SUM(amount), 0)
