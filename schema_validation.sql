@@ -6,6 +6,7 @@ DECLARE
     v_supplier_id INTEGER;
     v_product_id INTEGER;
     v_group_order_id INTEGER;
+    v_closed_group_order_id INTEGER;
     v_quantity INTEGER;
     v_total_price NUMERIC(12,2);
     v_current_quantity INTEGER;
@@ -34,6 +35,10 @@ BEGIN
     INSERT INTO group_orders (product_id, status, target_quantity, current_quantity, discount_rate)
     VALUES (v_product_id, 'open', 20, 5, 10.00)
     RETURNING id INTO v_group_order_id;
+
+    INSERT INTO group_orders (product_id, status, target_quantity, current_quantity, discount_rate)
+    VALUES (v_product_id, 'closed', 20, 0, 10.00)
+    RETURNING id INTO v_closed_group_order_id;
 
     INSERT INTO group_order_items (group_order_id, farmer_id, quantity, total_price, joined_at)
     VALUES (v_group_order_id, v_farmer_id, 5, 2790.00, NOW() - INTERVAL '1 day');
@@ -116,6 +121,17 @@ BEGIN
         WHEN OTHERS THEN
             GET STACKED DIAGNOSTICS v_error_message = MESSAGE_TEXT;
             IF v_error_message NOT LIKE 'Total price % does not match expected discounted total % for group order %' THEN
+                RAISE;
+            END IF;
+    END;
+
+    BEGIN
+        PERFORM join_group_order(v_closed_group_order_id, v_farmer_id, 1, 558.00);
+        RAISE EXCEPTION 'join_group_order should fail when the group order is not open';
+    EXCEPTION
+        WHEN OTHERS THEN
+            GET STACKED DIAGNOSTICS v_error_message = MESSAGE_TEXT;
+            IF v_error_message NOT LIKE 'Group order % is not open for new joins%' THEN
                 RAISE;
             END IF;
     END;
