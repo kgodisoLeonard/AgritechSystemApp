@@ -81,7 +81,8 @@ CREATE TABLE IF NOT EXISTS group_order_items (
     farmer_id       INTEGER NOT NULL REFERENCES farmers(id) ON DELETE CASCADE,
     quantity        INTEGER NOT NULL CHECK (quantity > 0),
     total_price     DECIMAL(12,2) NOT NULL CHECK (total_price >= 0),
-    joined_at       TIMESTAMP NOT NULL DEFAULT NOW()
+    joined_at       TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE (group_order_id, farmer_id)
 );
 
 -- ------------------------------------------------------------
@@ -145,6 +146,7 @@ RETURNS VOID AS $$
 DECLARE
     v_current_quantity INTEGER;
     v_target_quantity INTEGER;
+    v_existing_quantity INTEGER;
 BEGIN
     SELECT current_quantity, target_quantity
     INTO v_current_quantity, v_target_quantity
@@ -160,8 +162,23 @@ BEGIN
         RAISE EXCEPTION 'Group order % exceeds target quantity', p_group_order_id;
     END IF;
 
-    INSERT INTO group_order_items (group_order_id, farmer_id, quantity, total_price, joined_at)
-    VALUES (p_group_order_id, p_farmer_id, p_quantity, p_total_price, NOW());
+    SELECT quantity
+    INTO v_existing_quantity
+    FROM group_order_items
+    WHERE group_order_id = p_group_order_id
+      AND farmer_id = p_farmer_id
+    FOR UPDATE;
+
+    IF FOUND THEN
+        UPDATE group_order_items
+        SET quantity = v_existing_quantity + p_quantity,
+            total_price = total_price + p_total_price
+        WHERE group_order_id = p_group_order_id
+          AND farmer_id = p_farmer_id;
+    ELSE
+        INSERT INTO group_order_items (group_order_id, farmer_id, quantity, total_price, joined_at)
+        VALUES (p_group_order_id, p_farmer_id, p_quantity, p_total_price, NOW());
+    END IF;
 
     UPDATE group_orders
     SET current_quantity = v_current_quantity + p_quantity
@@ -231,7 +248,9 @@ $$ LANGUAGE plpgsql;
 -- ------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_supplier_products_supplier_id ON supplier_products(supplier_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_farmer_id            ON expenses(farmer_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_farmer_date          ON expenses(farmer_id, date);
 CREATE INDEX IF NOT EXISTS idx_income_farmer_id              ON income(farmer_id);
+CREATE INDEX IF NOT EXISTS idx_income_farmer_date            ON income(farmer_id, date);
 CREATE INDEX IF NOT EXISTS idx_group_orders_product_id       ON group_orders(product_id);
 CREATE INDEX IF NOT EXISTS idx_group_order_items_order_id    ON group_order_items(group_order_id);
 CREATE INDEX IF NOT EXISTS idx_group_order_items_farmer_id   ON group_order_items(farmer_id);
