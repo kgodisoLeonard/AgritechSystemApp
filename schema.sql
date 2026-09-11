@@ -181,12 +181,6 @@ BEGIN
             p_group_order_id;
     END IF;
 
-    PERFORM 1
-    FROM group_order_items
-    WHERE group_order_id = p_group_order_id
-      AND farmer_id = p_farmer_id
-    FOR UPDATE;
-
     INSERT INTO group_order_items (group_order_id, farmer_id, quantity, total_price, joined_at)
     VALUES (p_group_order_id, p_farmer_id, p_quantity, p_total_price, NOW())
     ON CONFLICT (group_order_id, farmer_id) DO UPDATE
