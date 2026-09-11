@@ -64,28 +64,36 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION calculate_monthly_profit(farmer_id INT, year INT, month INT)
+-- ============================================================
+-- Fixed calculate_monthly_profit function
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION calculate_monthly_profit(
+    p_farmer_id INT,
+    p_year INT,
+    p_month INT
+)
 RETURNS NUMERIC AS $$
 DECLARE
     total_income NUMERIC;
     total_expense NUMERIC;
     profit NUMERIC;
 BEGIN
-    
+    -- Sum all income for the given farmer, year, and month
     SELECT COALESCE(SUM(amount), 0)
     INTO total_income
     FROM income
-    WHERE farmer_id = calculate_monthly_profit.farmer_id
-      AND EXTRACT(YEAR FROM created_at) = year
-      AND EXTRACT(MONTH FROM created_at) = month;
+    WHERE income.farmer_id = p_farmer_id
+      AND EXTRACT(YEAR FROM date) = p_year
+      AND EXTRACT(MONTH FROM date) = p_month;
 
-   
+    -- Sum all expenses for the given farmer, year, and month
     SELECT COALESCE(SUM(amount), 0)
     INTO total_expense
     FROM expenses
-    WHERE farmer_id = calculate_monthly_profit.farmer_id
-      AND EXTRACT(YEAR FROM created_at) = year
-      AND EXTRACT(MONTH FROM created_at) = month;
+    WHERE expenses.farmer_id = p_farmer_id
+      AND EXTRACT(YEAR FROM date) = p_year
+      AND EXTRACT(MONTH FROM date) = p_month;
 
     -- Calculate profit
     profit := total_income - total_expense;
@@ -93,3 +101,4 @@ BEGIN
     RETURN profit;
 END;
 $$ LANGUAGE plpgsql;
+
