@@ -165,7 +165,8 @@ BEGIN
     VALUES (p_group_order_id, p_farmer_id, p_quantity, p_total_price, NOW())
     ON CONFLICT (group_order_id, farmer_id) DO UPDATE
     SET quantity = group_order_items.quantity + EXCLUDED.quantity,
-        total_price = group_order_items.total_price + EXCLUDED.total_price;
+        total_price = group_order_items.total_price + EXCLUDED.total_price,
+        joined_at = NOW();
 
     UPDATE group_orders
     SET current_quantity = v_current_quantity + p_quantity
@@ -209,6 +210,10 @@ DECLARE
     total_income NUMERIC;
     total_expense NUMERIC;
 BEGIN
+    IF p_month < 1 OR p_month > 12 THEN
+        RAISE EXCEPTION 'Month must be between 1 and 12. Got %', p_month;
+    END IF;
+
     v_month_start := MAKE_DATE(p_year, p_month, 1);
     v_next_month := (v_month_start + INTERVAL '1 month')::DATE;
 
