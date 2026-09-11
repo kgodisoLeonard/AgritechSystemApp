@@ -136,6 +136,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION group_order_join_lock_namespace()
+RETURNS INTEGER AS $$
+BEGIN
+    RETURN 7201;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
 CREATE OR REPLACE FUNCTION join_group_order(
     p_group_order_id INTEGER,
     p_farmer_id INTEGER,
@@ -150,7 +157,7 @@ DECLARE
     v_discounted_unit_price NUMERIC(12,2);
     v_expected_total_price NUMERIC(12,2);
 BEGIN
-    PERFORM pg_advisory_xact_lock('group_orders'::REGCLASS::INTEGER, p_group_order_id);
+    PERFORM pg_advisory_xact_lock(group_order_join_lock_namespace(), p_group_order_id);
 
     SELECT go.target_quantity,
            go.status,
