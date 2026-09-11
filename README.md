@@ -9,6 +9,7 @@ products, income/expense tracking, and group buying orders.
 |--------------------|-------------------------------------------------------|
 | `schema.sql`       | Creates all tables, constraints, and indexes           |
 | `seed.sql`         | Optional sample data for local testing                 |
+| `schema_validation.sql` | Transactional smoke checks for schema helper functions |
 | `docker-compose.yml` | Spins up a ready-to-use Postgres instance in Docker  |
 
 ## Tables
@@ -70,6 +71,17 @@ psql -h <host> -U <user> -d <database> -f seed.sql   # optional
    ```
 4. Update your app's environment variables (`DATABASE_URL`) to point to
    that connection string.
+
+## 5. Validate helper functions
+
+After loading `schema.sql` and `seed.sql`, you can run:
+
+```bash
+psql -h <host> -U <user> -d <database> -f schema_validation.sql
+```
+
+The script runs transactional smoke checks for repeated group-order joins and
+monthly profit boundaries, then rolls everything back.
 
 ## Notes
 
