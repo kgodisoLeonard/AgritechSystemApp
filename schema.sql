@@ -171,6 +171,8 @@ BEGIN
         RAISE EXCEPTION 'Quantity must be greater than 0. Got %', p_quantity;
     END IF;
 
+    LOCK TABLE group_order_items IN SHARE ROW EXCLUSIVE MODE;
+
     SELECT COALESCE(SUM(quantity), 0)
     INTO v_current_quantity
     FROM group_order_items
@@ -249,7 +251,7 @@ BEGIN
     BEGIN
         v_month_start := MAKE_DATE(p_year, p_month, 1);
     EXCEPTION
-        WHEN OTHERS THEN
+        WHEN SQLSTATE '22008' OR SQLSTATE '22007' THEN
             RAISE EXCEPTION 'Year must be supported by PostgreSQL date values. Got %', p_year;
     END;
 
