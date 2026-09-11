@@ -146,11 +146,16 @@ RETURNS VOID AS $$
 DECLARE
     v_current_quantity INTEGER;
     v_target_quantity INTEGER;
+    v_discounted_unit_price NUMERIC(12,2);
+    v_expected_total_price NUMERIC(12,2);
 BEGIN
-    SELECT current_quantity, target_quantity
-    INTO v_current_quantity, v_target_quantity
-    FROM group_orders
-    WHERE id = p_group_order_id
+    SELECT go.current_quantity,
+           go.target_quantity,
+           ROUND((sp.price * (1 - COALESCE(go.discount_rate, 0) / 100.0))::NUMERIC, 2)
+    INTO v_current_quantity, v_target_quantity, v_discounted_unit_price
+    FROM group_orders go
+    JOIN supplier_products sp ON sp.id = go.product_id
+    WHERE go.id = p_group_order_id
     FOR UPDATE;
 
     IF NOT FOUND THEN
@@ -159,6 +164,15 @@ BEGIN
 
     IF v_current_quantity + p_quantity > v_target_quantity THEN
         RAISE EXCEPTION 'Group order % exceeds target quantity', p_group_order_id;
+    END IF;
+
+    v_expected_total_price := ROUND((v_discounted_unit_price * p_quantity)::NUMERIC, 2);
+
+    IF ROUND(p_total_price::NUMERIC, 2) <> v_expected_total_price THEN
+        RAISE EXCEPTION 'Total price % does not match expected discounted total % for group order %',
+            p_total_price,
+            v_expected_total_price,
+            p_group_order_id;
     END IF;
 
     INSERT INTO group_order_items (group_order_id, farmer_id, quantity, total_price, joined_at)
