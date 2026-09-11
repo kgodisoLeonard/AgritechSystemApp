@@ -80,6 +80,9 @@ After loading `schema.sql`, you can run:
 psql -h <host> -U <user> -d <database> -f schema_validation.sql
 ```
 
+Run `schema.sql` first in its own clean session so its final `COMMIT;` completes
+before starting `schema_validation.sql`.
+
 The script creates its own temporary validation records, checks repeated
 group-order joins and monthly profit boundaries, then rolls everything back.
 
