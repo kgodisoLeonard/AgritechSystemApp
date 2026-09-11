@@ -20,6 +20,11 @@ DECLARE
     v_month_end DATE := DATE '2026-05-31';
     v_next_month DATE := DATE '2026-06-01';
     v_previous_month_end DATE := DATE '2026-04-30';
+    v_february_year INTEGER := 2026;
+    v_february_month INTEGER := 2;
+    v_february_start DATE := DATE '2026-02-01';
+    v_february_end DATE := DATE '2026-02-28';
+    v_march_start DATE := DATE '2026-03-01';
 BEGIN
     INSERT INTO farmers (name, location, contact)
     VALUES ('Validation Farmer', 'Validation Farm', '000 000 0000')
@@ -89,6 +94,21 @@ BEGIN
 
     IF v_profit <> 135.00 THEN
         RAISE EXCEPTION 'calculate_monthly_profit did not include target-month boundary rows and exclude next-month rows correctly';
+    END IF;
+
+    INSERT INTO income (farmer_id, item, amount, date) VALUES
+    (v_farmer_id, 'February income start', 80.00, v_february_start),
+    (v_farmer_id, 'February income end', 20.00, v_february_end),
+    (v_farmer_id, 'March income start', 500.00, v_march_start);
+
+    INSERT INTO expenses (farmer_id, item, category, amount, date) VALUES
+    (v_farmer_id, 'February expense', 'test', 40.00, v_february_end);
+
+    SELECT calculate_monthly_profit(v_farmer_id, v_february_year, v_february_month)
+    INTO v_profit;
+
+    IF v_profit <> 60.00 THEN
+        RAISE EXCEPTION 'calculate_monthly_profit did not handle February month boundaries correctly';
     END IF;
 
     SELECT calculate_monthly_profit(v_farmer_id, 1999, 1)
