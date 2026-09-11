@@ -179,7 +179,7 @@ BEGIN
     VALUES (p_group_order_id, p_farmer_id, p_quantity, p_total_price, NOW())
     ON CONFLICT (group_order_id, farmer_id) DO UPDATE
     SET quantity = group_order_items.quantity + EXCLUDED.quantity,
-        total_price = group_order_items.total_price + EXCLUDED.total_price,
+        total_price = ROUND((v_discounted_unit_price * (group_order_items.quantity + EXCLUDED.quantity))::NUMERIC, 2),
         joined_at = NOW();
 
     UPDATE group_orders
