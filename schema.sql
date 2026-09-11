@@ -146,13 +146,15 @@ RETURNS VOID AS $$
 DECLARE
     v_current_quantity INTEGER;
     v_target_quantity INTEGER;
+    v_status VARCHAR(50);
     v_discounted_unit_price NUMERIC(12,2);
     v_expected_total_price NUMERIC(12,2);
 BEGIN
     SELECT go.current_quantity,
            go.target_quantity,
+           go.status,
            ROUND((sp.price * (1 - COALESCE(go.discount_rate, 0) / 100.0))::NUMERIC, 2)
-    INTO v_current_quantity, v_target_quantity, v_discounted_unit_price
+    INTO v_current_quantity, v_target_quantity, v_status, v_discounted_unit_price
     FROM group_orders go
     JOIN supplier_products sp ON sp.id = go.product_id
     WHERE go.id = p_group_order_id
@@ -160,6 +162,10 @@ BEGIN
 
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Group order % does not exist', p_group_order_id;
+    END IF;
+
+    IF v_status <> 'open' THEN
+        RAISE EXCEPTION 'Group order % is not open for new joins', p_group_order_id;
     END IF;
 
     IF v_current_quantity + p_quantity > v_target_quantity THEN
@@ -174,6 +180,12 @@ BEGIN
             v_expected_total_price,
             p_group_order_id;
     END IF;
+
+    PERFORM 1
+    FROM group_order_items
+    WHERE group_order_id = p_group_order_id
+      AND farmer_id = p_farmer_id
+    FOR UPDATE;
 
     INSERT INTO group_order_items (group_order_id, farmer_id, quantity, total_price, joined_at)
     VALUES (p_group_order_id, p_farmer_id, p_quantity, p_total_price, NOW())
