@@ -49,7 +49,7 @@ BEGIN
     INSERT INTO group_order_items (group_order_id, farmer_id, quantity, total_price, joined_at)
     VALUES (v_group_order_id, v_farmer_id, 5, 2790.00, NOW() - INTERVAL '1 day');
 
-    PERFORM join_group_order(v_group_order_id, v_farmer_id, 2, 1116.00);
+    CALL join_group_order_proc(v_group_order_id, v_farmer_id, 2, 1116.00);
 
     UPDATE supplier_products
     SET price = 700.00
@@ -78,6 +78,50 @@ BEGIN
 
     IF v_current_quantity <> 8 THEN
         RAISE EXCEPTION 'join_group_order did not update the group order quantity correctly';
+    END IF;
+
+    CALL add_expense_proc(v_farmer_id, 'Procedure expense', 'test', 15.00);
+    CALL add_income_proc(v_farmer_id, 'Procedure income', 25.00);
+    CALL add_recommendation_proc(v_farmer_id, 'Procedure recommendation', 'pricing');
+    CALL send_notification_proc('farmer', v_farmer_id, 'Procedure notification');
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM expenses
+        WHERE farmer_id = v_farmer_id
+          AND item = 'Procedure expense'
+          AND amount = 15.00
+    ) THEN
+        RAISE EXCEPTION 'add_expense_proc did not insert an expense';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM income
+        WHERE farmer_id = v_farmer_id
+          AND item = 'Procedure income'
+          AND amount = 25.00
+    ) THEN
+        RAISE EXCEPTION 'add_income_proc did not insert income';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM ai_recommendations
+        WHERE farmer_id = v_farmer_id
+          AND recommendation_text = 'Procedure recommendation'
+    ) THEN
+        RAISE EXCEPTION 'add_recommendation_proc did not insert a recommendation';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM notifications
+        WHERE recipient_type = 'farmer'
+          AND recipient_id = v_farmer_id
+          AND message = 'Procedure notification'
+    ) THEN
+        RAISE EXCEPTION 'send_notification_proc did not insert a notification';
     END IF;
 
     INSERT INTO income (farmer_id, item, amount, date) VALUES

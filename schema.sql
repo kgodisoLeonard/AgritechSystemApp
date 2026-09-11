@@ -291,6 +291,71 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ------------------------------------------------------------
+-- procedures
+-- ------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE add_expense_proc(
+    p_farmer_id INTEGER,
+    p_item VARCHAR,
+    p_category VARCHAR,
+    p_amount DECIMAL(12,2)
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    PERFORM add_expense(p_farmer_id, p_item, p_category, p_amount);
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE add_income_proc(
+    p_farmer_id INTEGER,
+    p_item VARCHAR,
+    p_amount DECIMAL(12,2)
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    PERFORM add_income(p_farmer_id, p_item, p_amount);
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE join_group_order_proc(
+    p_group_order_id INTEGER,
+    p_farmer_id INTEGER,
+    p_quantity INTEGER,
+    p_total_price DECIMAL(12,2)
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    PERFORM join_group_order(p_group_order_id, p_farmer_id, p_quantity, p_total_price);
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE add_recommendation_proc(
+    p_farmer_id INTEGER,
+    p_text TEXT,
+    p_category VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    PERFORM add_recommendation(p_farmer_id, p_text, p_category);
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE send_notification_proc(
+    p_recipient_type VARCHAR,
+    p_recipient_id INTEGER,
+    p_message TEXT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    PERFORM send_notification(p_recipient_type, p_recipient_id, p_message);
+END;
+$$;
+
+-- ------------------------------------------------------------
 -- Helpful indexes for foreign keys / common lookups
 -- ------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_supplier_products_supplier_id ON supplier_products(supplier_id);
