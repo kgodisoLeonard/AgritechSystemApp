@@ -72,7 +72,7 @@ psql -h <host> -U <user> -d <database> -f seed.sql   # optional
 4. Update your app's environment variables (`DATABASE_URL`) to point to
    that connection string.
 
-## 5. Validate helper functions
+## Validate helper functions
 
 After loading `schema.sql`, you can run:
 
