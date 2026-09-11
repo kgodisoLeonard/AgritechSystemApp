@@ -81,8 +81,10 @@ CREATE TABLE IF NOT EXISTS group_order_items (
     farmer_id       INTEGER NOT NULL REFERENCES farmers(id) ON DELETE CASCADE,
     quantity        INTEGER NOT NULL CHECK (quantity > 0),
     total_price     DECIMAL(12,2) NOT NULL CHECK (total_price >= 0),
-    joined_at       TIMESTAMP NOT NULL DEFAULT NOW()
+    joined_at       TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE (group_order_id, farmer_id)
 );
+
 -- ------------------------------------------------------------
 -- ai_recommendations  (1 farmer -> * recommendations)
 -- ------------------------------------------------------------
@@ -107,15 +109,199 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 
 -- ------------------------------------------------------------
+-- helper functions
+-- ------------------------------------------------------------
+CREATE OR REPLACE FUNCTION add_expense(
+    p_farmer_id INTEGER,
+    p_item VARCHAR,
+    p_category VARCHAR,
+    p_amount DECIMAL(12,2)
+)
+RETURNS VOID AS $$
+BEGIN
+    INSERT INTO expenses (farmer_id, item, category, amount, date)
+    VALUES (p_farmer_id, p_item, p_category, p_amount, CURRENT_DATE);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION add_income(
+    p_farmer_id INTEGER,
+    p_item VARCHAR,
+    p_amount DECIMAL(12,2)
+)
+RETURNS VOID AS $$
+BEGIN
+    INSERT INTO income (farmer_id, item, amount, date)
+    VALUES (p_farmer_id, p_item, p_amount, CURRENT_DATE);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION group_order_join_lock_namespace()
+RETURNS INTEGER AS $$
+BEGIN
+    RETURN hashtext('agritech.group_order_join');
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION join_group_order(
+    p_group_order_id INTEGER,
+    p_farmer_id INTEGER,
+    p_quantity INTEGER,
+    p_total_price DECIMAL(12,2)
+)
+RETURNS VOID AS $$
+DECLARE
+    v_current_quantity INTEGER;
+    v_target_quantity INTEGER;
+    v_status VARCHAR(50);
+    v_discounted_unit_price NUMERIC(12,2);
+    v_expected_total_price NUMERIC(12,2);
+BEGIN
+    PERFORM pg_advisory_xact_lock(group_order_join_lock_namespace(), p_group_order_id);
+
+    SELECT go.target_quantity,
+           go.status,
+           ROUND((sp.price * (1 - COALESCE(go.discount_rate, 0) / 100.0))::NUMERIC, 2)
+    INTO v_target_quantity, v_status, v_discounted_unit_price
+    FROM group_orders go
+    JOIN supplier_products sp ON sp.id = go.product_id
+    WHERE go.id = p_group_order_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Group order % does not exist', p_group_order_id;
+    END IF;
+
+    IF v_status <> 'open' THEN
+        RAISE EXCEPTION 'Group order % is not open for new joins', p_group_order_id;
+    END IF;
+
+    IF p_quantity <= 0 THEN
+        RAISE EXCEPTION 'Quantity must be greater than 0. Got %', p_quantity;
+    END IF;
+
+    SELECT COALESCE(SUM(quantity), 0)
+    INTO v_current_quantity
+    FROM group_order_items
+    WHERE group_order_id = p_group_order_id;
+
+    IF v_current_quantity + p_quantity > v_target_quantity THEN
+        RAISE EXCEPTION 'Group order % exceeds target quantity', p_group_order_id;
+    END IF;
+
+    v_expected_total_price := ROUND((v_discounted_unit_price * p_quantity)::NUMERIC, 2);
+
+    IF ROUND(p_total_price::NUMERIC, 2) <> v_expected_total_price THEN
+        RAISE EXCEPTION 'Total price % does not match expected discounted total % for group order %',
+            p_total_price,
+            v_expected_total_price,
+            p_group_order_id;
+    END IF;
+
+    PERFORM 1
+    FROM group_order_items
+    WHERE group_order_id = p_group_order_id
+      AND farmer_id = p_farmer_id
+    FOR UPDATE;
+
+    INSERT INTO group_order_items (group_order_id, farmer_id, quantity, total_price, joined_at)
+    VALUES (p_group_order_id, p_farmer_id, p_quantity, p_total_price, NOW())
+    ON CONFLICT (group_order_id, farmer_id) DO UPDATE
+    SET quantity = group_order_items.quantity + EXCLUDED.quantity,
+        total_price = group_order_items.total_price + EXCLUDED.total_price,
+        joined_at = NOW();
+
+    UPDATE group_orders
+    SET current_quantity = COALESCE((
+        SELECT SUM(quantity)
+        FROM group_order_items
+        WHERE group_order_id = p_group_order_id
+    ), 0)
+    WHERE id = p_group_order_id;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION add_recommendation(
+    p_farmer_id INTEGER,
+    p_text TEXT,
+    p_category VARCHAR
+)
+RETURNS VOID AS $$
+BEGIN
+    INSERT INTO ai_recommendations (farmer_id, recommendation_text, category, created_at)
+    VALUES (p_farmer_id, p_text, p_category, NOW());
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION send_notification(
+    p_recipient_type VARCHAR,
+    p_recipient_id INTEGER,
+    p_message TEXT
+)
+RETURNS VOID AS $$
+BEGIN
+    INSERT INTO notifications (recipient_type, recipient_id, message, is_read, created_at)
+    VALUES (p_recipient_type, p_recipient_id, p_message, FALSE, NOW());
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION calculate_monthly_profit(
+    p_farmer_id INTEGER,
+    p_year INTEGER,
+    p_month INTEGER
+)
+RETURNS NUMERIC AS $$
+DECLARE
+    v_month_start DATE;
+    v_next_month DATE;
+    total_income NUMERIC;
+    total_expense NUMERIC;
+BEGIN
+    IF p_month < 1 OR p_month > 12 THEN
+        RAISE EXCEPTION 'Month must be between 1 and 12. Got %', p_month;
+    END IF;
+
+    BEGIN
+        v_month_start := MAKE_DATE(p_year, p_month, 1);
+    EXCEPTION
+        WHEN SQLSTATE '22008' OR SQLSTATE '22007' THEN
+            RAISE EXCEPTION 'Year/month input must resolve to a PostgreSQL-supported date. Got year %, month %',
+                p_year,
+                p_month;
+    END;
+
+    v_next_month := (v_month_start + INTERVAL '1 month')::DATE;
+
+    SELECT COALESCE(SUM(amount), 0)
+    INTO total_income
+    FROM income
+    WHERE farmer_id = p_farmer_id
+      AND date >= v_month_start
+      AND date < v_next_month;
+
+    SELECT COALESCE(SUM(amount), 0)
+    INTO total_expense
+    FROM expenses
+    WHERE farmer_id = p_farmer_id
+      AND date >= v_month_start
+      AND date < v_next_month;
+
+    RETURN total_income - total_expense;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ------------------------------------------------------------
 -- Helpful indexes for foreign keys / common lookups
 -- ------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_supplier_products_supplier_id ON supplier_products(supplier_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_farmer_id            ON expenses(farmer_id);
-CREATE INDEX IF NOT EXISTS idx_income_farmer_id               ON income(farmer_id);
-CREATE INDEX IF NOT EXISTS idx_group_orders_product_id        ON group_orders(product_id);
-CREATE INDEX IF NOT EXISTS idx_group_order_items_order_id     ON group_order_items(group_order_id);
-CREATE INDEX IF NOT EXISTS idx_group_order_items_farmer_id    ON group_order_items(farmer_id);
-CREATE INDEX IF NOT EXISTS idx_ai_recommendations_farmer_id   ON ai_recommendations(farmer_id);
-CREATE INDEX IF NOT EXISTS idx_notifications_recipient        ON notifications(recipient_type, recipient_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_farmer_date          ON expenses(farmer_id, date);
+CREATE INDEX IF NOT EXISTS idx_income_farmer_id              ON income(farmer_id);
+CREATE INDEX IF NOT EXISTS idx_income_farmer_date            ON income(farmer_id, date);
+CREATE INDEX IF NOT EXISTS idx_group_orders_product_id       ON group_orders(product_id);
+CREATE INDEX IF NOT EXISTS idx_group_order_items_order_id    ON group_order_items(group_order_id);
+CREATE INDEX IF NOT EXISTS idx_group_order_items_farmer_id   ON group_order_items(farmer_id);
+CREATE INDEX IF NOT EXISTS idx_ai_recommendations_farmer_id  ON ai_recommendations(farmer_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_recipient       ON notifications(recipient_type, recipient_id);
 
 COMMIT;
