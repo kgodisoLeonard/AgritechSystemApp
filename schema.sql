@@ -146,7 +146,6 @@ RETURNS VOID AS $$
 DECLARE
     v_current_quantity INTEGER;
     v_target_quantity INTEGER;
-    v_existing_quantity INTEGER;
 BEGIN
     SELECT current_quantity, target_quantity
     INTO v_current_quantity, v_target_quantity
@@ -162,23 +161,11 @@ BEGIN
         RAISE EXCEPTION 'Group order % exceeds target quantity', p_group_order_id;
     END IF;
 
-    SELECT quantity
-    INTO v_existing_quantity
-    FROM group_order_items
-    WHERE group_order_id = p_group_order_id
-      AND farmer_id = p_farmer_id
-    FOR UPDATE;
-
-    IF FOUND THEN
-        UPDATE group_order_items
-        SET quantity = v_existing_quantity + p_quantity,
-            total_price = total_price + p_total_price
-        WHERE group_order_id = p_group_order_id
-          AND farmer_id = p_farmer_id;
-    ELSE
-        INSERT INTO group_order_items (group_order_id, farmer_id, quantity, total_price, joined_at)
-        VALUES (p_group_order_id, p_farmer_id, p_quantity, p_total_price, NOW());
-    END IF;
+    INSERT INTO group_order_items (group_order_id, farmer_id, quantity, total_price, joined_at)
+    VALUES (p_group_order_id, p_farmer_id, p_quantity, p_total_price, NOW())
+    ON CONFLICT (group_order_id, farmer_id) DO UPDATE
+    SET quantity = group_order_items.quantity + EXCLUDED.quantity,
+        total_price = group_order_items.total_price + EXCLUDED.total_price;
 
     UPDATE group_orders
     SET current_quantity = v_current_quantity + p_quantity
