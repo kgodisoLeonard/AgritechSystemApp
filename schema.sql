@@ -150,11 +150,10 @@ DECLARE
     v_discounted_unit_price NUMERIC(12,2);
     v_expected_total_price NUMERIC(12,2);
 BEGIN
-    SELECT go.current_quantity,
-           go.target_quantity,
+    SELECT go.target_quantity,
            go.status,
            ROUND((sp.price * (1 - COALESCE(go.discount_rate, 0) / 100.0))::NUMERIC, 2)
-    INTO v_current_quantity, v_target_quantity, v_status, v_discounted_unit_price
+    INTO v_target_quantity, v_status, v_discounted_unit_price
     FROM group_orders go
     JOIN supplier_products sp ON sp.id = go.product_id
     WHERE go.id = p_group_order_id
@@ -172,6 +171,11 @@ BEGIN
         RAISE EXCEPTION 'Quantity must be greater than 0. Got %', p_quantity;
     END IF;
 
+    SELECT COALESCE(SUM(quantity), 0)
+    INTO v_current_quantity
+    FROM group_order_items
+    WHERE group_order_id = p_group_order_id;
+
     IF v_current_quantity + p_quantity > v_target_quantity THEN
         RAISE EXCEPTION 'Group order % exceeds target quantity', p_group_order_id;
     END IF;
@@ -185,17 +189,12 @@ BEGIN
             p_group_order_id;
     END IF;
 
-    UPDATE group_order_items
-    SET quantity = quantity + p_quantity,
-        total_price = ROUND((v_discounted_unit_price * (quantity + p_quantity))::NUMERIC, 2),
-        joined_at = NOW()
-    WHERE group_order_id = p_group_order_id
-      AND farmer_id = p_farmer_id;
-
-    IF NOT FOUND THEN
-        INSERT INTO group_order_items (group_order_id, farmer_id, quantity, total_price, joined_at)
-        VALUES (p_group_order_id, p_farmer_id, p_quantity, p_total_price, NOW());
-    END IF;
+    INSERT INTO group_order_items (group_order_id, farmer_id, quantity, total_price, joined_at)
+    VALUES (p_group_order_id, p_farmer_id, p_quantity, p_total_price, NOW())
+    ON CONFLICT (group_order_id, farmer_id) DO UPDATE
+    SET quantity = group_order_items.quantity + EXCLUDED.quantity,
+        total_price = ROUND((v_discounted_unit_price * (group_order_items.quantity + EXCLUDED.quantity))::NUMERIC, 2),
+        joined_at = NOW();
 
     UPDATE group_orders
     SET current_quantity = COALESCE((
@@ -250,7 +249,7 @@ BEGIN
     BEGIN
         v_month_start := MAKE_DATE(p_year, p_month, 1);
     EXCEPTION
-        WHEN datetime_field_overflow THEN
+        WHEN OTHERS THEN
             RAISE EXCEPTION 'Year must be supported by PostgreSQL date values. Got %', p_year;
     END;
 
