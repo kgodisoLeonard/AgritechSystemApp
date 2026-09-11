@@ -183,7 +183,7 @@ BEGIN
         joined_at = NOW();
 
     UPDATE group_orders
-    SET current_quantity = v_current_quantity + p_quantity
+    SET current_quantity = current_quantity + p_quantity
     WHERE id = p_group_order_id;
 END;
 $$ LANGUAGE plpgsql;
