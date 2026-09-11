@@ -15,6 +15,7 @@ DECLARE
     v_month INTEGER := EXTRACT(MONTH FROM CURRENT_DATE)::INTEGER;
     v_month_start DATE := MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER, EXTRACT(MONTH FROM CURRENT_DATE)::INTEGER, 1);
     v_next_month DATE := (DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month')::DATE;
+    v_month_end DATE := ((DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month') - INTERVAL '1 day')::DATE;
     v_previous_month_end DATE := (DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '1 day')::DATE;
 BEGIN
     SELECT quantity, total_price
@@ -48,6 +49,7 @@ BEGIN
 
     INSERT INTO income (farmer_id, item, amount, date) VALUES
     (1, 'Boundary income current month', 100.00, v_month_start),
+    (1, 'Boundary income month end', 60.00, v_month_end),
     (1, 'Boundary income next month', 700.00, v_next_month);
 
     INSERT INTO expenses (farmer_id, item, category, amount, date) VALUES
@@ -57,8 +59,8 @@ BEGIN
     SELECT calculate_monthly_profit(1, v_year, v_month)
     INTO v_profit;
 
-    IF v_profit <> 2825.00 THEN
-        RAISE EXCEPTION 'calculate_monthly_profit did not return the expected current month total';
+    IF v_profit <> 2885.00 THEN
+        RAISE EXCEPTION 'calculate_monthly_profit did not include target-month boundary rows and exclude next-month rows correctly';
     END IF;
 
     SELECT calculate_monthly_profit(1, 1999, 1)
@@ -86,6 +88,17 @@ BEGIN
         WHEN OTHERS THEN
             GET STACKED DIAGNOSTICS v_error_message = MESSAGE_TEXT;
             IF v_error_message NOT LIKE 'Group order 1 exceeds target quantity%' THEN
+                RAISE;
+            END IF;
+    END;
+
+    BEGIN
+        PERFORM join_group_order(1, 1, 1, 100.00);
+        RAISE EXCEPTION 'join_group_order should fail when the total price does not match the discounted product total';
+    EXCEPTION
+        WHEN OTHERS THEN
+            GET STACKED DIAGNOSTICS v_error_message = MESSAGE_TEXT;
+            IF v_error_message NOT LIKE 'Total price % does not match expected discounted total % for group order %' THEN
                 RAISE;
             END IF;
     END;
