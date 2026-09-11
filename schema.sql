@@ -63,3 +63,33 @@ BEGIN
     VALUES (p_recipient_type, p_recipient_id, p_message, FALSE, NOW());
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION calculate_monthly_profit(farmer_id INT, year INT, month INT)
+RETURNS NUMERIC AS $$
+DECLARE
+    total_income NUMERIC;
+    total_expense NUMERIC;
+    profit NUMERIC;
+BEGIN
+    
+    SELECT COALESCE(SUM(amount), 0)
+    INTO total_income
+    FROM income
+    WHERE farmer_id = calculate_monthly_profit.farmer_id
+      AND EXTRACT(YEAR FROM created_at) = year
+      AND EXTRACT(MONTH FROM created_at) = month;
+
+   
+    SELECT COALESCE(SUM(amount), 0)
+    INTO total_expense
+    FROM expenses
+    WHERE farmer_id = calculate_monthly_profit.farmer_id
+      AND EXTRACT(YEAR FROM created_at) = year
+      AND EXTRACT(MONTH FROM created_at) = month;
+
+    -- Calculate profit
+    profit := total_income - total_expense;
+
+    RETURN profit;
+END;
+$$ LANGUAGE plpgsql;
