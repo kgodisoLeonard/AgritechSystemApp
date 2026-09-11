@@ -168,6 +168,10 @@ BEGIN
         RAISE EXCEPTION 'Group order % is not open for new joins', p_group_order_id;
     END IF;
 
+    IF p_quantity <= 0 THEN
+        RAISE EXCEPTION 'Quantity must be greater than 0. Got %', p_quantity;
+    END IF;
+
     IF v_current_quantity + p_quantity > v_target_quantity THEN
         RAISE EXCEPTION 'Group order % exceeds target quantity', p_group_order_id;
     END IF;
@@ -181,12 +185,17 @@ BEGIN
             p_group_order_id;
     END IF;
 
-    INSERT INTO group_order_items (group_order_id, farmer_id, quantity, total_price, joined_at)
-    VALUES (p_group_order_id, p_farmer_id, p_quantity, p_total_price, NOW())
-    ON CONFLICT (group_order_id, farmer_id) DO UPDATE
-    SET quantity = group_order_items.quantity + EXCLUDED.quantity,
-        total_price = ROUND((v_discounted_unit_price * (group_order_items.quantity + EXCLUDED.quantity))::NUMERIC, 2),
-        joined_at = NOW();
+    UPDATE group_order_items
+    SET quantity = quantity + p_quantity,
+        total_price = ROUND((v_discounted_unit_price * (quantity + p_quantity))::NUMERIC, 2),
+        joined_at = NOW()
+    WHERE group_order_id = p_group_order_id
+      AND farmer_id = p_farmer_id;
+
+    IF NOT FOUND THEN
+        INSERT INTO group_order_items (group_order_id, farmer_id, quantity, total_price, joined_at)
+        VALUES (p_group_order_id, p_farmer_id, p_quantity, p_total_price, NOW());
+    END IF;
 
     UPDATE group_orders
     SET current_quantity = COALESCE((
