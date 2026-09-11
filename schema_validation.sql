@@ -45,7 +45,12 @@ BEGIN
     VALUES (v_group_order_id, v_farmer_id, 5, 2790.00, NOW() - INTERVAL '1 day');
 
     PERFORM join_group_order(v_group_order_id, v_farmer_id, 2, 1116.00);
-    PERFORM join_group_order(v_group_order_id, v_farmer_id, 1, 558.00);
+
+    UPDATE supplier_products
+    SET price = 700.00
+    WHERE id = v_product_id;
+
+    PERFORM join_group_order(v_group_order_id, v_farmer_id, 1, 630.00);
 
     SELECT quantity, total_price, joined_at
     INTO v_quantity, v_total_price, v_joined_at
@@ -53,8 +58,8 @@ BEGIN
     WHERE group_order_id = v_group_order_id
       AND farmer_id = v_farmer_id;
 
-    IF v_quantity <> 8 OR v_total_price <> 4464.00 THEN
-        RAISE EXCEPTION 'join_group_order did not accumulate existing participation correctly';
+    IF v_quantity <> 8 OR v_total_price <> 4536.00 THEN
+        RAISE EXCEPTION 'join_group_order did not preserve existing pricing and accumulate new participation correctly';
     END IF;
 
     IF v_joined_at IS NULL THEN

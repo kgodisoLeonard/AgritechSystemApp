@@ -150,6 +150,8 @@ DECLARE
     v_discounted_unit_price NUMERIC(12,2);
     v_expected_total_price NUMERIC(12,2);
 BEGIN
+    PERFORM pg_advisory_xact_lock(7201, p_group_order_id);
+
     SELECT go.target_quantity,
            go.status,
            ROUND((sp.price * (1 - COALESCE(go.discount_rate, 0) / 100.0))::NUMERIC, 2)
@@ -170,8 +172,6 @@ BEGIN
     IF p_quantity <= 0 THEN
         RAISE EXCEPTION 'Quantity must be greater than 0. Got %', p_quantity;
     END IF;
-
-    PERFORM pg_advisory_xact_lock(7201, p_group_order_id);
 
     SELECT COALESCE(SUM(quantity), 0)
     INTO v_current_quantity
@@ -195,7 +195,7 @@ BEGIN
     VALUES (p_group_order_id, p_farmer_id, p_quantity, p_total_price, NOW())
     ON CONFLICT (group_order_id, farmer_id) DO UPDATE
     SET quantity = group_order_items.quantity + EXCLUDED.quantity,
-        total_price = ROUND((v_discounted_unit_price * (group_order_items.quantity + EXCLUDED.quantity))::NUMERIC, 2),
+        total_price = group_order_items.total_price + EXCLUDED.total_price,
         joined_at = NOW();
 
     UPDATE group_orders
