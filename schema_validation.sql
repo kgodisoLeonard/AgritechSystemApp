@@ -13,6 +13,7 @@ DECLARE
     v_profit NUMERIC;
     v_joined_at TIMESTAMP;
     v_error_message TEXT;
+    v_expected_error BOOLEAN;
     v_year INTEGER := 2026;
     v_month INTEGER := 5;
     v_month_start DATE := DATE '2026-05-01';
@@ -92,82 +93,117 @@ BEGIN
         RAISE EXCEPTION 'calculate_monthly_profit should return 0 when a month has no rows';
     END IF;
 
+    v_expected_error := FALSE;
     BEGIN
         PERFORM join_group_order(-1, v_farmer_id, 1, 100.00);
-        RAISE EXCEPTION 'join_group_order should fail for missing group orders';
     EXCEPTION
-        WHEN OTHERS THEN
+        WHEN raise_exception THEN
             GET STACKED DIAGNOSTICS v_error_message = MESSAGE_TEXT;
-            IF v_error_message NOT LIKE 'Group order -1 does not exist%' THEN
+            IF v_error_message LIKE 'Group order -1 does not exist%' THEN
+                v_expected_error := TRUE;
+            ELSE
                 RAISE;
             END IF;
     END;
+    IF NOT v_expected_error THEN
+        RAISE EXCEPTION 'join_group_order should fail for missing group orders';
+    END IF;
 
+    v_expected_error := FALSE;
     BEGIN
         PERFORM join_group_order(v_group_order_id, v_farmer_id, 20, 11160.00);
-        RAISE EXCEPTION 'join_group_order should fail when the target quantity is exceeded';
     EXCEPTION
-        WHEN OTHERS THEN
+        WHEN raise_exception THEN
             GET STACKED DIAGNOSTICS v_error_message = MESSAGE_TEXT;
-            IF v_error_message NOT LIKE 'Group order % exceeds target quantity%' THEN
+            IF v_error_message LIKE 'Group order % exceeds target quantity%' THEN
+                v_expected_error := TRUE;
+            ELSE
                 RAISE;
             END IF;
     END;
+    IF NOT v_expected_error THEN
+        RAISE EXCEPTION 'join_group_order should fail when the target quantity is exceeded';
+    END IF;
 
+    v_expected_error := FALSE;
     BEGIN
         PERFORM join_group_order(v_group_order_id, v_farmer_id, 1, 100.00);
-        RAISE EXCEPTION 'join_group_order should fail when the total price does not match the discounted product total';
     EXCEPTION
-        WHEN OTHERS THEN
+        WHEN raise_exception THEN
             GET STACKED DIAGNOSTICS v_error_message = MESSAGE_TEXT;
-            IF v_error_message NOT LIKE 'Total price % does not match expected discounted total % for group order %' THEN
+            IF v_error_message LIKE 'Total price % does not match expected discounted total % for group order %' THEN
+                v_expected_error := TRUE;
+            ELSE
                 RAISE;
             END IF;
     END;
+    IF NOT v_expected_error THEN
+        RAISE EXCEPTION 'join_group_order should fail when the total price does not match the discounted product total';
+    END IF;
 
+    v_expected_error := FALSE;
     BEGIN
         PERFORM join_group_order(v_group_order_id, v_farmer_id, 0, 0.00);
-        RAISE EXCEPTION 'join_group_order should fail for non-positive quantities';
     EXCEPTION
-        WHEN OTHERS THEN
+        WHEN raise_exception THEN
             GET STACKED DIAGNOSTICS v_error_message = MESSAGE_TEXT;
-            IF v_error_message NOT LIKE 'Quantity must be greater than 0.%' THEN
+            IF v_error_message LIKE 'Quantity must be greater than 0.%' THEN
+                v_expected_error := TRUE;
+            ELSE
                 RAISE;
             END IF;
     END;
+    IF NOT v_expected_error THEN
+        RAISE EXCEPTION 'join_group_order should fail for non-positive quantities';
+    END IF;
 
+    v_expected_error := FALSE;
     BEGIN
         PERFORM join_group_order(v_closed_group_order_id, v_farmer_id, 1, 558.00);
-        RAISE EXCEPTION 'join_group_order should fail when the group order is not open';
     EXCEPTION
-        WHEN OTHERS THEN
+        WHEN raise_exception THEN
             GET STACKED DIAGNOSTICS v_error_message = MESSAGE_TEXT;
-            IF v_error_message NOT LIKE 'Group order % is not open for new joins%' THEN
+            IF v_error_message LIKE 'Group order % is not open for new joins%' THEN
+                v_expected_error := TRUE;
+            ELSE
                 RAISE;
             END IF;
     END;
+    IF NOT v_expected_error THEN
+        RAISE EXCEPTION 'join_group_order should fail when the group order is not open';
+    END IF;
 
+    v_expected_error := FALSE;
     BEGIN
         PERFORM calculate_monthly_profit(v_farmer_id, v_year, 13);
-        RAISE EXCEPTION 'calculate_monthly_profit should fail for invalid months';
     EXCEPTION
-        WHEN OTHERS THEN
+        WHEN raise_exception THEN
             GET STACKED DIAGNOSTICS v_error_message = MESSAGE_TEXT;
-            IF v_error_message NOT LIKE 'Month must be between 1 and 12.%' THEN
+            IF v_error_message LIKE 'Month must be between 1 and 12.%' THEN
+                v_expected_error := TRUE;
+            ELSE
                 RAISE;
             END IF;
     END;
+    IF NOT v_expected_error THEN
+        RAISE EXCEPTION 'calculate_monthly_profit should fail for invalid months';
+    END IF;
 
+    v_expected_error := FALSE;
     BEGIN
         PERFORM calculate_monthly_profit(v_farmer_id, 6000000, 1);
-        RAISE EXCEPTION 'calculate_monthly_profit should fail for invalid years';
     EXCEPTION
-        WHEN OTHERS THEN
+        WHEN raise_exception THEN
             GET STACKED DIAGNOSTICS v_error_message = MESSAGE_TEXT;
-            IF v_error_message NOT LIKE 'Year/month input must resolve to a PostgreSQL-supported date.%' THEN
+            IF v_error_message LIKE 'Year/month input must resolve to a PostgreSQL-supported date.%' THEN
+                v_expected_error := TRUE;
+            ELSE
                 RAISE;
             END IF;
     END;
+    IF NOT v_expected_error THEN
+        RAISE EXCEPTION 'calculate_monthly_profit should fail for invalid years';
+    END IF;
 END;
 $$;
 

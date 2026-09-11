@@ -171,7 +171,7 @@ BEGIN
         RAISE EXCEPTION 'Quantity must be greater than 0. Got %', p_quantity;
     END IF;
 
-    PERFORM pg_advisory_xact_lock(p_group_order_id);
+    PERFORM pg_advisory_xact_lock(7201, p_group_order_id);
 
     SELECT COALESCE(SUM(quantity), 0)
     INTO v_current_quantity
