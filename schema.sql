@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS group_order_items (
     total_price     DECIMAL(12,2) NOT NULL CHECK (total_price >= 0),
     joined_at       TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
 -- ------------------------------------------------------------
 -- ai_recommendations  (1 farmer -> * recommendations)
 -- ------------------------------------------------------------
@@ -107,15 +108,112 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 
 -- ------------------------------------------------------------
+-- helper functions
+-- ------------------------------------------------------------
+CREATE OR REPLACE FUNCTION add_expense(
+    p_farmer_id INTEGER,
+    p_item VARCHAR,
+    p_category VARCHAR,
+    p_amount DECIMAL(12,2)
+)
+RETURNS VOID AS $$
+BEGIN
+    INSERT INTO expenses (farmer_id, item, category, amount, date)
+    VALUES (p_farmer_id, p_item, p_category, p_amount, CURRENT_DATE);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION add_income(
+    p_farmer_id INTEGER,
+    p_item VARCHAR,
+    p_amount DECIMAL(12,2)
+)
+RETURNS VOID AS $$
+BEGIN
+    INSERT INTO income (farmer_id, item, amount, date)
+    VALUES (p_farmer_id, p_item, p_amount, CURRENT_DATE);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION join_group_order(
+    p_group_order_id INTEGER,
+    p_farmer_id INTEGER,
+    p_quantity INTEGER,
+    p_total_price DECIMAL(12,2)
+)
+RETURNS VOID AS $$
+BEGIN
+    INSERT INTO group_order_items (group_order_id, farmer_id, quantity, total_price, joined_at)
+    VALUES (p_group_order_id, p_farmer_id, p_quantity, p_total_price, NOW());
+
+    UPDATE group_orders
+    SET current_quantity = current_quantity + p_quantity
+    WHERE id = p_group_order_id;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION add_recommendation(
+    p_farmer_id INTEGER,
+    p_text TEXT,
+    p_category VARCHAR
+)
+RETURNS VOID AS $$
+BEGIN
+    INSERT INTO ai_recommendations (farmer_id, recommendation_text, category, created_at)
+    VALUES (p_farmer_id, p_text, p_category, NOW());
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION send_notification(
+    p_recipient_type VARCHAR,
+    p_recipient_id INTEGER,
+    p_message TEXT
+)
+RETURNS VOID AS $$
+BEGIN
+    INSERT INTO notifications (recipient_type, recipient_id, message, is_read, created_at)
+    VALUES (p_recipient_type, p_recipient_id, p_message, FALSE, NOW());
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION calculate_monthly_profit(
+    p_farmer_id INTEGER,
+    p_year INTEGER,
+    p_month INTEGER
+)
+RETURNS NUMERIC AS $$
+DECLARE
+    total_income NUMERIC;
+    total_expense NUMERIC;
+BEGIN
+    SELECT COALESCE(SUM(amount), 0)
+    INTO total_income
+    FROM income
+    WHERE farmer_id = p_farmer_id
+      AND EXTRACT(YEAR FROM date) = p_year
+      AND EXTRACT(MONTH FROM date) = p_month;
+
+    SELECT COALESCE(SUM(amount), 0)
+    INTO total_expense
+    FROM expenses
+    WHERE farmer_id = p_farmer_id
+      AND EXTRACT(YEAR FROM date) = p_year
+      AND EXTRACT(MONTH FROM date) = p_month;
+
+    RETURN total_income - total_expense;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ------------------------------------------------------------
 -- Helpful indexes for foreign keys / common lookups
 -- ------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_supplier_products_supplier_id ON supplier_products(supplier_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_farmer_id            ON expenses(farmer_id);
-CREATE INDEX IF NOT EXISTS idx_income_farmer_id               ON income(farmer_id);
-CREATE INDEX IF NOT EXISTS idx_group_orders_product_id        ON group_orders(product_id);
-CREATE INDEX IF NOT EXISTS idx_group_order_items_order_id     ON group_order_items(group_order_id);
-CREATE INDEX IF NOT EXISTS idx_group_order_items_farmer_id    ON group_order_items(farmer_id);
-CREATE INDEX IF NOT EXISTS idx_ai_recommendations_farmer_id   ON ai_recommendations(farmer_id);
-CREATE INDEX IF NOT EXISTS idx_notifications_recipient        ON notifications(recipient_type, recipient_id);
+CREATE INDEX IF NOT EXISTS idx_income_farmer_id              ON income(farmer_id);
+CREATE INDEX IF NOT EXISTS idx_group_orders_product_id       ON group_orders(product_id);
+CREATE INDEX IF NOT EXISTS idx_group_order_items_order_id    ON group_order_items(group_order_id);
+CREATE INDEX IF NOT EXISTS idx_group_order_items_farmer_id   ON group_order_items(farmer_id);
+CREATE INDEX IF NOT EXISTS idx_ai_recommendations_farmer_id  ON ai_recommendations(farmer_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_recipient       ON notifications(recipient_type, recipient_id);
 
 COMMIT;
