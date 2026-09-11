@@ -100,6 +100,17 @@ BEGIN
                 RAISE;
             END IF;
     END;
+
+    BEGIN
+        PERFORM calculate_monthly_profit(1, 6000000, 1);
+        RAISE EXCEPTION 'calculate_monthly_profit should fail for invalid years';
+    EXCEPTION
+        WHEN OTHERS THEN
+            GET STACKED DIAGNOSTICS v_error_message = MESSAGE_TEXT;
+            IF v_error_message NOT LIKE 'Year must be supported by PostgreSQL date values.%' THEN
+                RAISE;
+            END IF;
+    END;
 END;
 $$;
 
