@@ -164,7 +164,7 @@ BEGIN
     EXCEPTION
         WHEN OTHERS THEN
             GET STACKED DIAGNOSTICS v_error_message = MESSAGE_TEXT;
-            IF v_error_message NOT LIKE 'Year must be supported by PostgreSQL date values.%' THEN
+            IF v_error_message NOT LIKE 'Year/month input must resolve to a PostgreSQL-supported date.%' THEN
                 RAISE;
             END IF;
     END;
