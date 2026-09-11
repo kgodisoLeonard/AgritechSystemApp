@@ -12,6 +12,10 @@ products, income/expense tracking, and group buying orders.
 | `schema_validation.sql` | Transactional smoke checks for schema helper functions |
 | `docker-compose.yml` | Spins up a ready-to-use Postgres instance in Docker  |
 
+The schema also provides procedures for write operations. Use `CALL` with
+`add_expense_proc`, `add_income_proc`, `join_group_order_proc`,
+`add_recommendation_proc`, and `send_notification_proc`.
+
 ## Tables
 
 - **farmers** — registered farmers
