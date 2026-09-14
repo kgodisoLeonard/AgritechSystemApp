@@ -1,0 +1,102 @@
+erDiagram
+    %% Agri Tech Database — Entity Relationship Diagram (v2)
+    %% farmers & suppliers are the two central hub entities.
+    %% All ids are string (UUID). PK = primary key, FK = foreign key.
+    %% Each relationship below renders as its own clearly separated line.
+
+    FARMERS {
+        string id PK
+        string name
+        string location
+        string contact
+        timestamp created_at
+    }
+
+    SUPPLIERS {
+        string id PK
+        string name
+        string location
+        string contact
+        timestamp created_at
+    }
+
+    SUPPLIER_PRODUCTS {
+        string id PK
+        string supplier_id FK
+        string product_name
+        decimal price
+    }
+
+    EXPENSES {
+        string id PK
+        string farmer_id FK
+        string item
+        string category
+        decimal amount
+        date date
+    }
+
+    INCOME {
+        string id PK
+        string farmer_id FK
+        string item
+        decimal amount
+        date date
+    }
+
+    GROUP_ORDERS {
+        string id PK
+        string product_id FK
+        string supplier_id FK
+        string status
+        int target_quantity
+        int current_quantity
+        decimal discount_rate
+        timestamp created_at
+    }
+
+    GROUP_ORDER_ITEMS {
+        string id PK
+        string group_order_id FK
+        string farmer_id FK
+        int quantity
+        decimal total_price
+        string status "progress: pending to confirmed to paid to delivered"
+        timestamp joined_at
+    }
+
+    AI_RECOMMENDATIONS {
+        string id PK
+        string farmer_id FK
+        string recommended_product_id FK
+        string suggested_group_order_id FK
+        string reason
+        timestamp created_at
+    }
+
+    NOTIFICATIONS {
+        string id PK
+        string supplier_id FK
+        string group_order_id FK
+        string message
+        boolean is_read
+        timestamp created_at
+    }
+
+    %% --- Farmer-centered relationships ---
+    FARMERS ||--o{ EXPENSES : "has"
+    FARMERS ||--o{ INCOME : "has"
+    FARMERS ||--o{ GROUP_ORDER_ITEMS : "places"
+    FARMERS ||--o{ AI_RECOMMENDATIONS : "receives"
+
+    %% --- Supplier-centered relationships ---
+    SUPPLIERS ||--o{ SUPPLIER_PRODUCTS : "lists"
+    SUPPLIERS ||--o{ GROUP_ORDERS : "supplies to"
+    SUPPLIERS ||--o{ NOTIFICATIONS : "gets"
+
+    %% --- Group order relationships (progress + supplier visibility) ---
+    SUPPLIER_PRODUCTS ||--o{ GROUP_ORDERS : "ordered via"
+    GROUP_ORDERS ||--o{ GROUP_ORDER_ITEMS : "contains"
+    GROUP_ORDERS ||--o{ NOTIFICATIONS : "triggers"
+    GROUP_ORDERS ||--o{ AI_RECOMMENDATIONS : "suggested via"
+    SUPPLIER_PRODUCTS ||--o{ AI_RECOMMENDATIONS : "recommended as"
