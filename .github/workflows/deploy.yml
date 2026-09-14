@@ -14,7 +14,24 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  check-secrets:
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - name: Check VPS secrets are configured
+        id: check
+        run: |
+          if [ -n "${{ secrets.VPS_HOST }}" ] && [ -n "${{ secrets.VPS_USER }}" ] && [ -n "${{ secrets.VPS_SSH_KEY }}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Skipping VPS deploy: VPS_HOST, VPS_USER, and/or VPS_SSH_KEY secrets are not set. Add them in Settings > Secrets and variables > Actions to enable this workflow."
+          fi
+
   deploy:
+    needs: check-secrets
+    if: needs.check-secrets.outputs.configured == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
