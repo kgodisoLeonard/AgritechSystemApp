@@ -2,11 +2,11 @@ BEGIN;
 
 DO $$
 DECLARE
-    v_farmer_id INTEGER;
-    v_supplier_id INTEGER;
-    v_product_id INTEGER;
-    v_group_order_id INTEGER;
-    v_closed_group_order_id INTEGER;
+    v_farmer_id VARCHAR(36);
+    v_supplier_id VARCHAR(36);
+    v_product_id VARCHAR(36);
+    v_group_order_id VARCHAR(36);
+    v_closed_group_order_id VARCHAR(36);
     v_quantity INTEGER;
     v_total_price NUMERIC(12,2);
     v_current_quantity INTEGER;
@@ -38,12 +38,12 @@ BEGIN
     VALUES (v_supplier_id, 'Validation Product', 620.00)
     RETURNING id INTO v_product_id;
 
-    INSERT INTO group_orders (product_id, status, target_quantity, current_quantity, discount_rate)
-    VALUES (v_product_id, 'open', 20, 5, 10.00)
+    INSERT INTO group_orders (product_id, supplier_id, status, target_quantity, current_quantity, discount_rate)
+    VALUES (v_product_id, v_supplier_id, 'open', 20, 5, 10.00)
     RETURNING id INTO v_group_order_id;
 
-    INSERT INTO group_orders (product_id, status, target_quantity, current_quantity, discount_rate)
-    VALUES (v_product_id, 'closed', 20, 0, 10.00)
+    INSERT INTO group_orders (product_id, supplier_id, status, target_quantity, current_quantity, discount_rate)
+    VALUES (v_product_id, v_supplier_id, 'closed', 20, 0, 10.00)
     RETURNING id INTO v_closed_group_order_id;
 
     INSERT INTO group_order_items (group_order_id, farmer_id, quantity, total_price, joined_at)
@@ -82,8 +82,8 @@ BEGIN
 
     CALL add_expense_proc(v_farmer_id, 'Procedure expense', 'test', 15.00);
     CALL add_income_proc(v_farmer_id, 'Procedure income', 25.00);
-    CALL add_recommendation_proc(v_farmer_id, 'Procedure recommendation', 'pricing');
-    CALL send_notification_proc('farmer', v_farmer_id, 'Procedure notification');
+    CALL add_recommendation_proc(v_farmer_id, v_product_id, v_group_order_id, 'Procedure recommendation');
+    CALL send_notification_proc(v_supplier_id, v_group_order_id, 'Procedure notification');
 
     IF NOT EXISTS (
         SELECT 1
@@ -109,7 +109,9 @@ BEGIN
         SELECT 1
         FROM ai_recommendations
         WHERE farmer_id = v_farmer_id
-          AND recommendation_text = 'Procedure recommendation'
+          AND recommended_product_id = v_product_id
+          AND suggested_group_order_id = v_group_order_id
+          AND reason = 'Procedure recommendation'
     ) THEN
         RAISE EXCEPTION 'add_recommendation_proc did not insert a recommendation';
     END IF;
@@ -117,8 +119,8 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1
         FROM notifications
-        WHERE recipient_type = 'farmer'
-          AND recipient_id = v_farmer_id
+        WHERE supplier_id = v_supplier_id
+          AND group_order_id = v_group_order_id
           AND message = 'Procedure notification'
     ) THEN
         RAISE EXCEPTION 'send_notification_proc did not insert a notification';
@@ -164,7 +166,7 @@ BEGIN
 
     v_expected_error := FALSE;
     BEGIN
-        PERFORM join_group_order(-1, v_farmer_id, 1, 100.00);
+        PERFORM join_group_order('-1', v_farmer_id, 1, 100.00);
     EXCEPTION
         WHEN raise_exception THEN
             GET STACKED DIAGNOSTICS v_error_message = MESSAGE_TEXT;
