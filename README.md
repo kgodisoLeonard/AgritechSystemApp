@@ -10,8 +10,10 @@ products, income/expense tracking, and group buying orders.
 | `schema.sql`       | Creates all tables, constraints, views, and indexes    |
 | `seed.sql`         | Optional sample data for local testing                 |
 | `schema_validation.sql` | Transactional smoke checks for schema helper functions |
-| `docker-compose.yml` | Spins up a ready-to-use Postgres instance in Docker  |
+| `docker-compose.yml` | Builds/runs the PostgreSQL image locally             |
+| `Dockerfile` | Packages PostgreSQL with the schema and seed data       |
 | `docs/ERD.md`, `docs/erd.mmd` | Entity relationship diagram (Mermaid source)  |
+| `.github/workflows/publish-database-image.yml` | Builds/publishes the image to GHCR on push |
 | `.github/workflows/ci.yml` | Applies schema/seed/validation against Postgres on every push/PR |
 | `.github/workflows/deploy.yml` | Deploys the stack to a VPS over SSH on push to `main` |
 
@@ -76,8 +78,15 @@ git push -u origin main
 docker compose up -d
 ```
 
-This starts Postgres on `localhost:5432` and automatically loads
-`schema.sql` and `seed.sql` on first run.
+This builds the database image and starts Postgres on `localhost:5432`.
+The schema and seed data are loaded on the first startup of a new database
+volume.
+
+The GitHub Actions workflow publishes the same image to GitHub Container
+Registry as `ghcr.io/kgodisoleonard/agritech-db` after pushes to `main` or
+`fix-calculate-profit`. GHCR stores the image; it does not provide the
+persistent database service itself. For production, use Render PostgreSQL and
+run `schema.sql` and `seed.sql` against its connection URL.
 
 - Database: `agritech`
 - User: `agritech_user`
