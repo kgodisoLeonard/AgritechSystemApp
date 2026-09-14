@@ -1,0 +1,48 @@
+name: Validate schema
+
+# Confirms schema.sql, seed.sql, and schema_validation.sql apply
+# cleanly against a real Postgres instance before deploy.yml ships
+# them to the VPS.
+on:
+  push:
+    paths:
+      - "schema.sql"
+      - "seed.sql"
+      - "schema_validation.sql"
+  pull_request:
+    paths:
+      - "schema.sql"
+      - "seed.sql"
+      - "schema_validation.sql"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: agritech
+          POSTGRES_USER: agritech_user
+          POSTGRES_PASSWORD: change_me
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGPASSWORD: change_me
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Apply schema.sql
+        run: psql -h localhost -U agritech_user -d agritech -v ON_ERROR_STOP=1 -f schema.sql
+
+      - name: Apply seed.sql
+        run: psql -h localhost -U agritech_user -d agritech -v ON_ERROR_STOP=1 -f seed.sql
+
+      - name: Run schema_validation.sql
+        run: psql -h localhost -U agritech_user -d agritech -v ON_ERROR_STOP=1 -f schema_validation.sql
