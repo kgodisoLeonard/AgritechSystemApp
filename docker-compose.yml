@@ -1,6 +1,9 @@
 services:
   db:
-    image: postgres:16
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ghcr.io/kgodisoleonard/agritech-db:latest
     container_name: agritech_db
     restart: unless-stopped
     environment:
@@ -11,8 +14,6 @@ services:
       - "5432:5432"
     volumes:
       - agritech_data:/var/lib/postgresql/data
-      - ./schema.sql:/docker-entrypoint-initdb.d/1_schema.sql
-      - ./seed.sql:/docker-entrypoint-initdb.d/2_seed.sql
 
 volumes:
   agritech_data:
