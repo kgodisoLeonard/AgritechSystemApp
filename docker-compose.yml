@@ -9,9 +9,9 @@ services:
     environment:
       POSTGRES_DB: agritech
       POSTGRES_USER: agritech_user
-      POSTGRES_PASSWORD: change_me
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set (see .env or CI secret)}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - agritech_data:/var/lib/postgresql/data
 
