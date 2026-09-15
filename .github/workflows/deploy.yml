@@ -22,11 +22,11 @@ jobs:
       - name: Check VPS secrets are configured
         id: check
         run: |
-          if [ -n "${{ secrets.VPS_HOST }}" ] && [ -n "${{ secrets.VPS_USER }}" ] && [ -n "${{ secrets.VPS_SSH_KEY }}" ]; then
+          if [ -n "${{ secrets.VPS_HOST }}" ] && [ -n "${{ secrets.VPS_USER }}" ] && [ -n "${{ secrets.VPS_SSH_KEY }}" ] && [ -n "${{ secrets.POSTGRES_PASSWORD }}" ]; then
             echo "configured=true" >> "$GITHUB_OUTPUT"
           else
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Skipping VPS deploy: VPS_HOST, VPS_USER, and/or VPS_SSH_KEY secrets are not set. Add them in Settings > Secrets and variables > Actions to enable this workflow."
+            echo "::warning::Skipping VPS deploy: VPS_HOST, VPS_USER, VPS_SSH_KEY, and/or POSTGRES_PASSWORD secrets are not set. Add them in Settings > Secrets and variables > Actions to enable this workflow."
           fi
 
   deploy:
@@ -43,6 +43,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          envs: POSTGRES_PASSWORD
           script: |
             set -e
             APP_DIR="$HOME/AgritechSystemApp"
@@ -54,6 +55,10 @@ jobs:
               git clone https://github.com/${{ github.repository }}.git "$APP_DIR"
               cd "$APP_DIR"
             fi
+            echo "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" > .env
+            chmod 600 .env
             docker compose down
             docker compose up -d
             docker compose ps
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
