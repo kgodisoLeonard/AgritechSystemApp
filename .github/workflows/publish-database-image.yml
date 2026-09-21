@@ -1,6 +1,10 @@
 name: Publish container images
 
 on:
+  push:
+    branches:
+      - main
+      - fix-calculate-profit
   workflow_dispatch:
 
 env:
@@ -52,3 +56,79 @@ jobs:
           tags: |
             ${{ env.AI_IMAGE }}:latest
             ${{ env.AI_IMAGE }}:${{ github.sha }}
+
+  vps-secrets:
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+
+    steps:
+      - name: Check VPS deployment secrets
+        id: check
+        run: |
+          if [ -n "$VPS_HOST" ] && [ -n "$VPS_USER" ] && [ -n "$VPS_SSH_KEY" ] && [ -n "$POSTGRES_PASSWORD" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Skipping VPS deploy. Configure VPS_HOST, VPS_USER, VPS_SSH_KEY, and POSTGRES_PASSWORD repository secrets."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs:
+      - publish-images
+      - vps-secrets
+    if: needs.vps-secrets.outputs.configured == 'true'
+    permissions:
+      contents: read
+      packages: read
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+      AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+      AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
+      GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/vps_key
+          chmod 600 ~/.ssh/vps_key
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Sync repository to VPS
+        run: |
+          ssh -i ~/.ssh/vps_key "$VPS_USER@$VPS_HOST" "
+            set -e
+            if [ -d ~/agritech-db/.git ]; then
+              cd ~/agritech-db && git fetch origin main && git reset --hard origin/main
+            else
+              rm -rf ~/agritech-db
+              git clone --branch main https://github.com/${{ github.repository }}.git ~/agritech-db
+            fi
+          "
+
+      - name: Deploy containers on VPS
+        run: |
+          printf '%s\n' "$GHCR_TOKEN" | ssh -i ~/.ssh/vps_key "$VPS_USER@$VPS_HOST" "
+            cd ~/agritech-db
+            printf 'POSTGRES_PASSWORD=%s\nNODE_ENV=production\nAZURE_OPENAI_ENDPOINT=%s\nAZURE_OPENAI_API_KEY=%s\nAZURE_OPENAI_DEPLOYMENT=%s\n' '$POSTGRES_PASSWORD' '$AZURE_OPENAI_ENDPOINT' '$AZURE_OPENAI_API_KEY' '$AZURE_OPENAI_DEPLOYMENT' > .env
+            chmod 600 .env
+            docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+            docker compose pull
+            docker rm -f agritech_db agritech_api agritech_ai_service 2>/dev/null || true
+            docker compose up -d --no-build
+            docker ps --filter name=agritech_
+          "
