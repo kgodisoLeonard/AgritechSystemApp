@@ -92,4 +92,4 @@ jobs:
 
       - name: Deploy database container on VPS
         run: |
-          printf '%s\n' "$GHCR_TOKEN" | ssh -i ~/.ssh/vps_key "$VPS_USER@$VPS_HOST" "cd ~/agritech-db && printf 'POSTGRES_PASSWORD=%s\n' '$POSTGRES_PASSWORD' > .env && docker login ghcr.io -u '${{ github.actor }}' --password-stdin && docker compose pull db && docker compose up -d --no-build db && docker ps --filter name=agritech_db"
+          printf '%s\n' "$GHCR_TOKEN" | ssh -i ~/.ssh/vps_key "$VPS_USER@$VPS_HOST" "cd ~/agritech-db && printf 'POSTGRES_PASSWORD=%s\n' '$POSTGRES_PASSWORD' > .env && docker login ghcr.io -u '${{ github.actor }}' --password-stdin && docker compose pull db && docker rm -f agritech_db 2>/dev/null || true; docker compose up -d --no-build db && docker ps --filter name=agritech_db"
