@@ -14,27 +14,44 @@ services:
       - "127.0.0.1:5433:5432"
     volumes:
       - agritech_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agritech_user -d agritech"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   api:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: ghcr.io/kgodisoleonard/agritech-api:latest
     container_name: agritech_api
     restart: unless-stopped
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "3000:3000"
     environment:
       PORT: 3000
-      NODE_ENV: development
-      DATABASE_URL: postgresql://agritech_user:change_me@db:5432/agritech
+      NODE_ENV: ${NODE_ENV:-production}
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: agritech
+      DB_USER: agritech_user
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set (see .env or CI secret)}
       DB_SSL: "false"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   ai-service:
     build:
       context: ./spring-ai-service
       dockerfile: Dockerfile
+    image: ghcr.io/kgodisoleonard/agritech-ai-service:latest
     container_name: agritech_ai_service
     restart: unless-stopped
     ports:
