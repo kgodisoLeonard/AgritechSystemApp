@@ -15,5 +15,35 @@ services:
     volumes:
       - agritech_data:/var/lib/postgresql/data
 
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: agritech_api
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      NODE_ENV: development
+      DATABASE_URL: postgresql://agritech_user:change_me@db:5432/agritech
+      DB_SSL: "false"
+
+  ai-service:
+    build:
+      context: ./spring-ai-service
+      dockerfile: Dockerfile
+    container_name: agritech_ai_service
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
+      AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT:-}
+
 volumes:
   agritech_data:
