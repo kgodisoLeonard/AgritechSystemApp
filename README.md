@@ -10,12 +10,13 @@ products, income/expense tracking, and group buying orders.
 | `schema.sql`       | Creates all tables, constraints, views, and indexes    |
 | `seed.sql`         | Optional sample data for local testing                 |
 | `schema_validation.sql` | Transactional smoke checks for schema helper functions |
-| `docker-compose.yml` | Builds/runs the PostgreSQL image locally             |
+| `docker-compose.yml` | Builds/runs the database, Node API, and Spring AI service containers |
 | `Dockerfile` | Packages PostgreSQL with the schema and seed data       |
+| `backend/` | Express API exposed on port `3000` |
+| `spring-ai-service/` | Spring Boot AI service exposed on port `8080` |
 | `docs/ERD.md`, `docs/erd.mmd` | Entity relationship diagram (Mermaid source)  |
-| `.github/workflows/publish-database-image.yml` | Builds/publishes the image to GHCR on push |
+| `.github/workflows/publish-database-image.yml` | Builds/publishes and deploys the full container stack to a VPS |
 | `.github/workflows/ci.yml` | Applies schema/seed/validation against Postgres on every push/PR |
-| `.github/workflows/deploy.yml` | Deploys the stack to a VPS over SSH on push to `main` |
 
 The schema also provides procedures for write operations. Use `CALL` with
 `add_expense_proc`, `add_income_proc`, `join_group_order_proc`,
@@ -78,14 +79,21 @@ git push -u origin main
 docker compose up -d
 ```
 
-This builds the database image and starts Postgres on `localhost:5432`.
+This builds the container stack and starts:
+
+- PostgreSQL on `localhost:5433`
+- Node API on `localhost:3000`
+- Spring AI service on `localhost:8080`
+
 The schema and seed data are loaded on the first startup of a new database
 volume.
 
-The GitHub Actions workflow publishes the same image to GitHub Container
-Registry as `ghcr.io/kgodisoleonard/agritech-db` after pushes to `main` or
-`fix-calculate-profit`. It can also deploy the Dockerized database to an Oracle
-VPS by SSH.
+The GitHub Actions deployment workflow publishes these images to GitHub
+Container Registry and deploys them to the VPS:
+
+- `ghcr.io/kgodisoleonard/agritech-db`
+- `ghcr.io/kgodisoleonard/agritech-api`
+- `ghcr.io/kgodisoleonard/agritech-ai-service`
 
 Before the VPS deployment can run, add these repository secrets in GitHub under
 Settings -> Secrets and variables -> Actions:
@@ -93,19 +101,26 @@ Settings -> Secrets and variables -> Actions:
 - `VPS_HOST`
 - `VPS_USER`
 - `VPS_SSH_KEY`
+- `POSTGRES_PASSWORD`
 
-Then run GitHub -> Actions -> Deploy to VPS -> Run workflow -> main. Check that
+Optional AI service secrets:
+
+- `AZURE_OPENAI_ENDPOINT`
+- `AZURE_OPENAI_API_KEY`
+- `AZURE_OPENAI_DEPLOYMENT`
+
+Then run GitHub -> Actions -> Deploy API stack to VPS -> Run workflow -> main. Check that
 the `deploy` job says success. If the VPS secrets are missing, the workflow will
 still publish the image, but the `deploy` job will be skipped.
 
-The VPS deployment copies `docker-compose.yml` to `~/agritech-db`, pulls the
-latest GHCR image, and starts the `agritech_db` container with Docker Compose.
-The schema and seed data are loaded on the first startup of a new PostgreSQL
-volume.
+The VPS deployment clones/updates this repo in `~/AgritechSystemApp`, writes
+the production `.env`, pulls the latest GHCR images, and starts the full stack
+with Docker Compose. The schema and seed data are loaded on the first startup
+of a new PostgreSQL volume.
 
 - Database: `agritech`
 - User: `agritech_user`
-- Password: `change_me` (change this in `docker-compose.yml` before deploying anywhere public)
+- Password: supplied by the `POSTGRES_PASSWORD` secret
 
 Connect with:
 
@@ -162,12 +177,12 @@ test never merges silently.
 
 ## 6. Automatic deployment to your VPS
 
-`.github/workflows/deploy.yml` deploys to a VPS (e.g. the Oracle Cloud
-instance set up earlier) over SSH whenever `main` changes.
+`.github/workflows/publish-database-image.yml` publishes the database, Node
+API, and Spring AI service images, then deploys the full Docker Compose stack
+to a VPS over SSH whenever `main` changes.
 
 1. On the VPS, make sure Docker, Docker Compose, and `git` are installed and
-   the deploy user can run `docker` (see the setup steps used for Oracle
-   Cloud above).
+   the deploy user can run `docker`.
 2. In the GitHub repo, go to **Settings → Secrets and variables → Actions**
    and add:
    - `VPS_HOST` — the server's public IP (e.g. `92.4.134.156`)
@@ -176,9 +191,9 @@ instance set up earlier) over SSH whenever `main` changes.
      authorized on the server (`~/.ssh/authorized_keys`). Never reuse a key
      that has ever been pasted into chat, an issue, or a PR.
 3. Push to `main` (or run the workflow manually from the **Actions** tab).
-   The workflow clones/updates the repo on the server and runs
-   `docker compose up -d`.
-4. Keep PostgreSQL port `5432` closed to the public internet; use an SSH
-   tunnel (`ssh -L 5432:localhost:5432 user@host`) when you need to connect
-   from your own machine.
+   The workflow publishes images, updates the repo on the server, pulls the
+   images, and runs `docker compose up -d --no-build`.
+4. Keep PostgreSQL closed to the public internet; this compose file binds it to
+   `127.0.0.1:5433`. Use an SSH tunnel when you need to connect from your own
+   machine.
 
