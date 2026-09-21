@@ -104,12 +104,7 @@ jobs:
         run: |
           printf '%s\n' "$GHCR_TOKEN" | ssh -i ~/.ssh/vps_key "$VPS_USER@$VPS_HOST" "
             cd ~/agritech-db
-            cat > .env <<EOF
-POSTGRES_PASSWORD=$POSTGRES_PASSWORD
-AZURE_OPENAI_ENDPOINT=$AZURE_OPENAI_ENDPOINT
-AZURE_OPENAI_API_KEY=$AZURE_OPENAI_API_KEY
-AZURE_OPENAI_DEPLOYMENT=$AZURE_OPENAI_DEPLOYMENT
-EOF
+            printf 'POSTGRES_PASSWORD=%s\nAZURE_OPENAI_ENDPOINT=%s\nAZURE_OPENAI_API_KEY=%s\nAZURE_OPENAI_DEPLOYMENT=%s\n' '$POSTGRES_PASSWORD' '$AZURE_OPENAI_ENDPOINT' '$AZURE_OPENAI_API_KEY' '$AZURE_OPENAI_DEPLOYMENT' > .env
             chmod 600 .env
             docker login ghcr.io -u '${{ github.actor }}' --password-stdin
             docker compose pull db
