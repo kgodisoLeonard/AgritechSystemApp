@@ -72,6 +72,9 @@ jobs:
       VPS_USER: ${{ secrets.VPS_USER }}
       VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+      AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+      AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
       GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
@@ -85,11 +88,32 @@ jobs:
           chmod 600 ~/.ssh/vps_key
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
 
-      - name: Copy Docker Compose file to VPS
+      - name: Sync repository to VPS
         run: |
-          ssh -i ~/.ssh/vps_key "$VPS_USER@$VPS_HOST" "mkdir -p ~/agritech-db"
-          scp -i ~/.ssh/vps_key docker-compose.yml "$VPS_USER@$VPS_HOST:~/agritech-db/docker-compose.yml"
+          ssh -i ~/.ssh/vps_key "$VPS_USER@$VPS_HOST" "
+            set -e
+            if [ -d ~/agritech-db/.git ]; then
+              cd ~/agritech-db && git fetch origin main && git reset --hard origin/main
+            else
+              rm -rf ~/agritech-db
+              git clone --branch main https://github.com/${{ github.repository }}.git ~/agritech-db
+            fi
+          "
 
-      - name: Deploy database container on VPS
+      - name: Deploy containers on VPS
         run: |
-          printf '%s\n' "$GHCR_TOKEN" | ssh -i ~/.ssh/vps_key "$VPS_USER@$VPS_HOST" "cd ~/agritech-db && printf 'POSTGRES_PASSWORD=%s\n' '$POSTGRES_PASSWORD' > .env && docker login ghcr.io -u '${{ github.actor }}' --password-stdin && docker compose pull db && docker rm -f agritech_db 2>/dev/null || true; docker compose up -d --no-build db && docker ps --filter name=agritech_db"
+          printf '%s\n' "$GHCR_TOKEN" | ssh -i ~/.ssh/vps_key "$VPS_USER@$VPS_HOST" "
+            cd ~/agritech-db
+            cat > .env <<EOF
+POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+AZURE_OPENAI_ENDPOINT=$AZURE_OPENAI_ENDPOINT
+AZURE_OPENAI_API_KEY=$AZURE_OPENAI_API_KEY
+AZURE_OPENAI_DEPLOYMENT=$AZURE_OPENAI_DEPLOYMENT
+EOF
+            chmod 600 .env
+            docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+            docker compose pull db
+            docker rm -f agritech_db agritech_api agritech_ai_service 2>/dev/null || true
+            docker compose up -d --build
+            docker ps --filter name=agritech_
+          "
