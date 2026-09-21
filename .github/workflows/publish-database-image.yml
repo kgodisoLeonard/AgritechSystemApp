@@ -45,15 +45,16 @@ jobs:
       VPS_HOST: ${{ secrets.VPS_HOST }}
       VPS_USER: ${{ secrets.VPS_USER }}
       VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
 
     steps:
       - name: Check VPS deployment secrets
         id: check
         run: |
-          if [ -n "$VPS_HOST" ] && [ -n "$VPS_USER" ] && [ -n "$VPS_SSH_KEY" ]; then
+          if [ -n "$VPS_HOST" ] && [ -n "$VPS_USER" ] && [ -n "$VPS_SSH_KEY" ] && [ -n "$POSTGRES_PASSWORD" ]; then
             echo "configured=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::Skipping VPS deploy. Configure VPS_HOST, VPS_USER, and VPS_SSH_KEY repository secrets."
+            echo "::warning::Skipping VPS deploy. Configure VPS_HOST, VPS_USER, VPS_SSH_KEY, and POSTGRES_PASSWORD repository secrets."
             echo "configured=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -70,6 +71,7 @@ jobs:
       VPS_HOST: ${{ secrets.VPS_HOST }}
       VPS_USER: ${{ secrets.VPS_USER }}
       VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
       GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
@@ -90,4 +92,4 @@ jobs:
 
       - name: Deploy database container on VPS
         run: |
-          printf '%s\n' "$GHCR_TOKEN" | ssh -i ~/.ssh/vps_key "$VPS_USER@$VPS_HOST" "cd ~/agritech-db && docker login ghcr.io -u '${{ github.actor }}' --password-stdin && docker compose pull db && docker compose up -d --no-build db && docker ps --filter name=agritech_db"
+          printf '%s\n' "$GHCR_TOKEN" | ssh -i ~/.ssh/vps_key "$VPS_USER@$VPS_HOST" "cd ~/agritech-db && printf 'POSTGRES_PASSWORD=%s\n' '$POSTGRES_PASSWORD' > .env && docker login ghcr.io -u '${{ github.actor }}' --password-stdin && docker compose pull db && docker compose up -d --no-build db && docker ps --filter name=agritech_db"
