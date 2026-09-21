@@ -84,9 +84,24 @@ volume.
 
 The GitHub Actions workflow publishes the same image to GitHub Container
 Registry as `ghcr.io/kgodisoleonard/agritech-db` after pushes to `main` or
-`fix-calculate-profit`. GHCR stores the image; it does not provide the
-persistent database service itself. For production, use Render PostgreSQL and
-run `schema.sql` and `seed.sql` against its connection URL.
+`fix-calculate-profit`. It can also deploy the Dockerized database to an Oracle
+VPS by SSH.
+
+Before the VPS deployment can run, add these repository secrets in GitHub under
+Settings -> Secrets and variables -> Actions:
+
+- `VPS_HOST`
+- `VPS_USER`
+- `VPS_SSH_KEY`
+
+Then run GitHub -> Actions -> Deploy to VPS -> Run workflow -> main. Check that
+the `deploy` job says success. If the VPS secrets are missing, the workflow will
+still publish the image, but the `deploy` job will be skipped.
+
+The VPS deployment copies `docker-compose.yml` to `~/agritech-db`, pulls the
+latest GHCR image, and starts the `agritech_db` container with Docker Compose.
+The schema and seed data are loaded on the first startup of a new PostgreSQL
+volume.
 
 - Database: `agritech`
 - User: `agritech_user`
