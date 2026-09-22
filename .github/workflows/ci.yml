@@ -1,8 +1,7 @@
 name: Validate schema
 
 # Confirms schema.sql, seed.sql, and schema_validation.sql apply
-# cleanly against a real Postgres instance before deploy.yml ships
-# them to the VPS.
+# cleanly against a real Postgres instance on your self-hosted runner.
 on:
   push:
     paths:
@@ -17,7 +16,7 @@ on:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     services:
       postgres:
         image: postgres:16
