@@ -10,10 +10,9 @@ products, income/expense tracking, and group buying orders.
 | `schema.sql`       | Creates all tables, constraints, views, and indexes    |
 | `seed.sql`         | Optional sample data for local testing                 |
 | `schema_validation.sql` | Transactional smoke checks for schema helper functions |
-| `docker-compose.yml` | Builds/runs the database, Node API, and Spring AI service containers |
+| `docker-compose.yml` | Builds/runs the database and Node API containers |
 | `Dockerfile` | Packages PostgreSQL with the schema and seed data       |
 | `backend/` | Express API exposed on port `3000` |
-| `spring-ai-service/` | Spring Boot AI service exposed on port `8080` |
 | `docs/ERD.md`, `docs/erd.mmd` | Entity relationship diagram (Mermaid source)  |
 | `.github/workflows/publish-database-image.yml` | Builds/publishes and deploys the full container stack to a VPS |
 | `.github/workflows/ci.yml` | Applies schema/seed/validation against Postgres on every push/PR |
@@ -83,7 +82,6 @@ This builds the container stack and starts:
 
 - PostgreSQL on `localhost:5433`
 - Node API on `localhost:3000`
-- Spring AI service on `localhost:8080`
 
 The schema and seed data are loaded on the first startup of a new database
 volume.
@@ -93,7 +91,6 @@ Container Registry and deploys them to the VPS:
 
 - `ghcr.io/kgodisoleonard/agritech-db`
 - `ghcr.io/kgodisoleonard/agritech-api`
-- `ghcr.io/kgodisoleonard/agritech-ai-service`
 
 Before the VPS deployment can run, add these repository secrets in GitHub under
 Settings -> Secrets and variables -> Actions:
@@ -102,12 +99,6 @@ Settings -> Secrets and variables -> Actions:
 - `VPS_USER`
 - `VPS_SSH_KEY`
 - `POSTGRES_PASSWORD`
-
-Optional AI service secrets:
-
-- `AZURE_OPENAI_ENDPOINT`
-- `AZURE_OPENAI_API_KEY`
-- `AZURE_OPENAI_DEPLOYMENT`
 
 Then run GitHub -> Actions -> Deploy API stack to VPS -> Run workflow -> main. Check that
 the `deploy` job says success. If the VPS secrets are missing, the workflow will
@@ -178,7 +169,7 @@ test never merges silently.
 ## 6. Automatic deployment to your VPS
 
 `.github/workflows/publish-database-image.yml` publishes the database, Node
-API, and Spring AI service images, then deploys the full Docker Compose stack
+API images, then deploys the Docker Compose stack
 to a VPS over SSH whenever `main` changes.
 
 1. On the VPS, make sure Docker, Docker Compose, and `git` are installed and
