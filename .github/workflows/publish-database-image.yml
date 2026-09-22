@@ -131,8 +131,8 @@ jobs:
             docker inspect agritech_api --format 'api state={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restarts={{.RestartCount}}' || echo NO_API_CONTAINER
             echo --- database image ---
             docker image inspect ghcr.io/kgodisoleonard/agritech-db:latest --format 'DB image config digest: {{.Id}}' || echo NO_DB_IMAGE
-            echo --- waiting up to 60s for database ---
-            for i in $(seq 1 20); do
+            echo --- waiting up to 90s for database ---
+            for i in \$(seq 1 30); do
               if docker exec agritech_db pg_isready -U agritech_user -d agritech; then
                 echo DATABASE_READY
                 break
@@ -141,7 +141,9 @@ jobs:
               sleep 3
             done
             echo --- database container logs ---
-            docker logs --tail 60 agritech_db || echo NO_DB_LOGS
+            docker logs --tail 60 agritech_db 2>&1 || echo NO_DB_LOGS
+            echo --- database compose logs ---
+            docker compose logs --tail 40 db 2>&1 || echo NO_COMPOSE_LOGS
             echo --- schema check ---
             docker exec agritech_db psql -U agritech_user -d agritech -c 'SELECT count(*) AS farmers FROM farmers;' || echo SCHEMA_CHECK_FAILED
           " 2>&1)
