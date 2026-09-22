@@ -116,13 +116,21 @@ jobs:
             chmod 600 .env
             docker login ghcr.io -u '${{ github.actor }}' --password-stdin
             docker compose pull
-            docker rm -f agritech_db agritech_api agritech_ai_service 2>/dev/null || true
+            echo --- host resources ---
+            df -h /
+            free -m
+            docker system df
+            echo --- deploy ---
             docker compose up -d --no-build --remove-orphans
+            docker rm -f agritech_ai_service 2>/dev/null || true
             echo --- container state ---
             docker compose ps
             docker ps -a --filter name=agritech_
+            echo --- container detail ---
+            docker inspect agritech_db --format 'db state={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restarts={{.RestartCount}}' || echo NO_DB_CONTAINER
+            docker inspect agritech_api --format 'api state={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restarts={{.RestartCount}}' || echo NO_API_CONTAINER
             echo --- database image ---
-            docker image inspect ghcr.io/kgodisoleonard/agritech-db:latest --format 'DB image config digest: {{.Id}}'
+            docker image inspect ghcr.io/kgodisoleonard/agritech-db:latest --format 'DB image config digest: {{.Id}}' || echo NO_DB_IMAGE
             echo --- waiting up to 60s for database ---
             for i in $(seq 1 20); do
               if docker exec agritech_db pg_isready -U agritech_user -d agritech; then
@@ -133,18 +141,21 @@ jobs:
               sleep 3
             done
             echo --- database container logs ---
-            docker logs --tail 80 agritech_db || true
+            docker logs --tail 60 agritech_db || echo NO_DB_LOGS
             echo --- schema check ---
             docker exec agritech_db psql -U agritech_user -d agritech -c 'SELECT count(*) AS farmers FROM farmers;' || echo SCHEMA_CHECK_FAILED
           " 2>&1)
           rc=$?
           printf '%s\n' "$out"
+          host=$(printf '%s' "$out" | sed -n '/--- host resources ---/,/--- deploy ---/p' | tr -s '\n' ' ' | tr -d '%' | cut -c1-700)
+          detail=$(printf '%s' "$out" | sed -n '/--- container state ---/,/--- schema check ---/p' | tr -s '\n' ' ' | tr -d '%' | cut -c1-1200)
           if printf '%s' "$out" | grep -q SCHEMA_CHECK_FAILED; then
-            echo "::warning::Schema check failed on the VPS database - the farmers table may be missing. See the schema check section above."
+            echo "::warning::Schema check failed on the VPS database - the farmers table may be missing."
           fi
           if printf '%s' "$out" | grep -q DATABASE_READY; then
             echo "VPS deployment verified: agritech_db is accepting connections."
             exit $rc
           fi
-          echo "::error::agritech_db on the VPS is NOT accepting connections after 60s. See the database container logs section above."
+          echo "::error title=VPS host resources::$host"
+          echo "::error title=agritech_db NOT accepting connections::$detail"
           exit 1
