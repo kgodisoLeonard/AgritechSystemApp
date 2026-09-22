@@ -47,20 +47,5 @@ services:
       timeout: 5s
       retries: 5
 
-  ai-service:
-    build:
-      context: ./spring-ai-service
-      dockerfile: Dockerfile
-    image: ghcr.io/kgodisoleonard/agritech-ai-service:latest
-    container_name: agritech_ai_service
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    environment:
-      PORT: 8080
-      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
-      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
-      AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT:-}
-
 volumes:
   agritech_data:

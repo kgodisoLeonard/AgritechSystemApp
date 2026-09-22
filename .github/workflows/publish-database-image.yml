@@ -10,7 +10,6 @@ on:
 env:
   DB_IMAGE: ghcr.io/kgodisoleonard/agritech-db
   API_IMAGE: ghcr.io/kgodisoleonard/agritech-api
-  AI_IMAGE: ghcr.io/kgodisoleonard/agritech-ai-service
 
 jobs:
   publish-images:
@@ -48,15 +47,6 @@ jobs:
             ${{ env.API_IMAGE }}:latest
             ${{ env.API_IMAGE }}:${{ github.sha }}
 
-      - name: Build and push AI service image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./spring-ai-service
-          push: true
-          tags: |
-            ${{ env.AI_IMAGE }}:latest
-            ${{ env.AI_IMAGE }}:${{ github.sha }}
-
   vps-secrets:
     runs-on: ubuntu-latest
     outputs:
@@ -92,9 +82,6 @@ jobs:
       VPS_USER: ${{ secrets.VPS_USER }}
       VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-      AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-      AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
-      AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
       GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
@@ -124,11 +111,11 @@ jobs:
         run: |
           printf '%s\n' "$GHCR_TOKEN" | ssh -i ~/.ssh/vps_key "$VPS_USER@$VPS_HOST" "
             cd ~/agritech-db
-            printf 'POSTGRES_PASSWORD=%s\nNODE_ENV=production\nAZURE_OPENAI_ENDPOINT=%s\nAZURE_OPENAI_API_KEY=%s\nAZURE_OPENAI_DEPLOYMENT=%s\n' '$POSTGRES_PASSWORD' '$AZURE_OPENAI_ENDPOINT' '$AZURE_OPENAI_API_KEY' '$AZURE_OPENAI_DEPLOYMENT' > .env
+            printf 'POSTGRES_PASSWORD=%s\nNODE_ENV=production\n' '$POSTGRES_PASSWORD' > .env
             chmod 600 .env
             docker login ghcr.io -u '${{ github.actor }}' --password-stdin
             docker compose pull
-            docker rm -f agritech_db agritech_api agritech_ai_service 2>/dev/null || true
+            docker rm -f agritech_db agritech_api agritech_ai_service 2>/dev/null || true  # agritech_ai_service = retired AI container, removed if still present
             docker compose up -d --no-build
             docker ps --filter name=agritech_
           "
