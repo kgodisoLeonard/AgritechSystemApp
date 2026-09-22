@@ -1,23 +1,31 @@
 name: Validate schema
 
 # Confirms schema.sql, seed.sql, and schema_validation.sql apply
-# cleanly against a real Postgres instance on your self-hosted runner.
+# cleanly against a real Postgres instance.
+#
+# Runs on GitHub-hosted ubuntu-latest: it ships psql and Docker preinstalled,
+# needs no maintenance, and completes in ~22s (see runs #1-#3). Commit 8d72037
+# switched this to `self-hosted`, but no runner was ever provisioned, so every
+# job queued indefinitely waiting for a machine that does not exist.
+# Changes to this workflow also trigger a run, so the definition stays verified.
 on:
   push:
     paths:
       - "schema.sql"
       - "seed.sql"
       - "schema_validation.sql"
+      - ".github/workflows/ci.yml"
   pull_request:
     paths:
       - "schema.sql"
       - "seed.sql"
       - "schema_validation.sql"
+      - ".github/workflows/ci.yml"
   workflow_dispatch:
 
 jobs:
   validate:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     services:
       postgres:
         image: postgres:16
