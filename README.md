@@ -104,7 +104,7 @@ Then run GitHub -> Actions -> Deploy API stack to VPS -> Run workflow -> main. C
 the `deploy` job says success. If the VPS secrets are missing, the workflow will
 still publish the image, but the `deploy` job will be skipped.
 
-The VPS deployment clones/updates this repo in `~/AgritechSystemApp`, writes
+The VPS deployment clones/updates this repo in `~/agritech-db`, writes
 the production `.env`, pulls the latest GHCR images, and starts the full stack
 with Docker Compose. The schema and seed data are loaded on the first startup
 of a new PostgreSQL volume.

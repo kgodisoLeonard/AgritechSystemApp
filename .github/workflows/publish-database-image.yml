@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - fix-calculate-profit
   workflow_dispatch:
 
 env:
@@ -74,6 +73,7 @@ jobs:
       - publish-images
       - vps-secrets
     if: needs.vps-secrets.outputs.configured == 'true'
+    environment: production
     permissions:
       contents: read
       packages: read
@@ -117,5 +117,18 @@ jobs:
             docker compose pull
             docker rm -f agritech_db agritech_api agritech_ai_service 2>/dev/null || true  # agritech_ai_service = retired AI container, removed if still present
             docker compose up -d --no-build
+            docker compose ps
             docker ps --filter name=agritech_
+            echo --- waiting for database to accept connections ---
+            for i in $(seq 1 10); do
+              if docker exec agritech_db pg_isready -U agritech_user -d agritech; then
+                echo DATABASE_READY
+                break
+              fi
+              echo waiting-for-database
+              sleep 3
+            done
+            docker exec agritech_db pg_isready -U agritech_user -d agritech
+            docker exec agritech_db psql -U agritech_user -d agritech -c 'SELECT count(*) AS farmers FROM farmers;'
+            docker image inspect ghcr.io/kgodisoleonard/agritech-db:latest --format 'DB image config digest: {{.Id}}'
           "
