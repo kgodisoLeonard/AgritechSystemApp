@@ -1,0 +1,35 @@
+# Name of the workflow as it appears in the GitHub Actions tab
+name: Java CI with Maven
+
+# Defines when this pipeline should run
+on:
+  # Run automatically whenever someone pushes code to the main branch
+  push:
+    branches: [ "main" ]
+  # Run automatically whenever a Pull Request is opened against main
+  pull_request:
+    branches: [ "main" ]
+
+# The jobs (tasks) to perform
+jobs:
+  build:
+    # Use a clean, cloud-hosted Linux (Ubuntu) virtual machine
+    runs-on: ubuntu-latest
+
+    # The sequential steps to execute on the virtual machine
+    steps:
+    # Step 1: Copy (clone) your API source code onto the virtual machine
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # Step 2: Install and configure Java 17 (JDK) on the virtual machine
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven # Caches Maven dependencies so future builds are faster
+
+    # Step 3: Compile the Java code and package it into a runnable JAR file
+    - name: Build and Test with Maven
+      run: mvn clean package -DskipTests
