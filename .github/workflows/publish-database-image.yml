@@ -109,18 +109,22 @@ jobs:
 
       - name: Deploy containers on VPS
         run: |
-          printf '%s\n' "$GHCR_TOKEN" | ssh -i ~/.ssh/vps_key "$VPS_USER@$VPS_HOST" "
+          set +e
+          out=$(printf '%s\n' "$GHCR_TOKEN" | ssh -i ~/.ssh/vps_key "$VPS_USER@$VPS_HOST" "
             cd ~/agritech-db
             printf 'POSTGRES_PASSWORD=%s\nNODE_ENV=production\n' '$POSTGRES_PASSWORD' > .env
             chmod 600 .env
             docker login ghcr.io -u '${{ github.actor }}' --password-stdin
             docker compose pull
-            docker rm -f agritech_db agritech_api agritech_ai_service 2>/dev/null || true  # agritech_ai_service = retired AI container, removed if still present
-            docker compose up -d --no-build
+            docker rm -f agritech_db agritech_api agritech_ai_service 2>/dev/null || true
+            docker compose up -d --no-build --remove-orphans
+            echo --- container state ---
             docker compose ps
-            docker ps --filter name=agritech_
-            echo --- waiting for database to accept connections ---
-            for i in $(seq 1 10); do
+            docker ps -a --filter name=agritech_
+            echo --- database image ---
+            docker image inspect ghcr.io/kgodisoleonard/agritech-db:latest --format 'DB image config digest: {{.Id}}'
+            echo --- waiting up to 60s for database ---
+            for i in $(seq 1 20); do
               if docker exec agritech_db pg_isready -U agritech_user -d agritech; then
                 echo DATABASE_READY
                 break
@@ -128,7 +132,19 @@ jobs:
               echo waiting-for-database
               sleep 3
             done
-            docker exec agritech_db pg_isready -U agritech_user -d agritech
-            docker exec agritech_db psql -U agritech_user -d agritech -c 'SELECT count(*) AS farmers FROM farmers;'
-            docker image inspect ghcr.io/kgodisoleonard/agritech-db:latest --format 'DB image config digest: {{.Id}}'
-          "
+            echo --- database container logs ---
+            docker logs --tail 80 agritech_db || true
+            echo --- schema check ---
+            docker exec agritech_db psql -U agritech_user -d agritech -c 'SELECT count(*) AS farmers FROM farmers;' || echo SCHEMA_CHECK_FAILED
+          " 2>&1)
+          rc=$?
+          printf '%s\n' "$out"
+          if printf '%s' "$out" | grep -q SCHEMA_CHECK_FAILED; then
+            echo "::warning::Schema check failed on the VPS database - the farmers table may be missing. See the schema check section above."
+          fi
+          if printf '%s' "$out" | grep -q DATABASE_READY; then
+            echo "VPS deployment verified: agritech_db is accepting connections."
+            exit $rc
+          fi
+          echo "::error::agritech_db on the VPS is NOT accepting connections after 60s. See the database container logs section above."
+          exit 1
