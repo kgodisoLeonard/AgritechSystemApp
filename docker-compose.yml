@@ -1,4 +1,5 @@
 services:
+
   db:
     build:
       context: .
@@ -6,19 +7,24 @@ services:
     image: ghcr.io/kgodisoleonard/agritech-db:latest
     container_name: agritech_db
     restart: unless-stopped
+
     environment:
       POSTGRES_DB: agritech
       POSTGRES_USER: agritech_user
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set (see .env or CI secret)}
+
     ports:
       - "127.0.0.1:5433:5432"
+
     volumes:
       - agritech_data:/var/lib/postgresql/data
+
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U agritech_user -d agritech"]
       interval: 10s
       timeout: 5s
       retries: 5
+
 
   api:
     build:
@@ -27,25 +33,51 @@ services:
     image: ghcr.io/kgodisoleonard/agritech-api:latest
     container_name: agritech_api
     restart: unless-stopped
+
     depends_on:
       db:
         condition: service_healthy
+
     ports:
       - "3000:3000"
+
     environment:
       PORT: 3000
       NODE_ENV: ${NODE_ENV:-production}
+
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: agritech
       DB_USER: agritech_user
       DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set (see .env or CI secret)}
       DB_SSL: "false"
+
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+
+  agrifinance-api:
+    image: ghcr.io/mastermind1632/agrifinance-api:latest
+    container_name: agrifinance_api
+    restart: unless-stopped
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    ports:
+      - "8081:8080"
+
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/agritech
+      SPRING_DATASOURCE_USERNAME: agritech_user
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+
+      SERVER_PORT: 8080
+
 
 volumes:
   agritech_data:
