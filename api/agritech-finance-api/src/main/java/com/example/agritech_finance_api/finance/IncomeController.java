@@ -36,4 +36,20 @@ public class IncomeController {
     public void deleteIncome(@PathVariable Long id) {
         incomeRepository.deleteById(id);
     }
+
+    // Update an existing income record
+    @PutMapping("/{id}")
+    public Income updateIncome(@PathVariable Long id, @RequestBody Income incomeDetails) {
+        return incomeRepository.findById(id)
+                .map(income -> {
+                    income.setSource(incomeDetails.getSource());
+                    income.setAmount(incomeDetails.getAmount());
+                    income.setDate(incomeDetails.getDate());
+                    return incomeRepository.save(income);
+                })
+                .orElseGet(() -> {
+                    incomeDetails.setId(id);
+                    return incomeRepository.save(incomeDetails);
+                });
+    }
 }
