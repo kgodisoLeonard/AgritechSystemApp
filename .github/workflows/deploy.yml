@@ -36,5 +36,5 @@ jobs:
             # Stop the currently running containers safely
             docker compose down
             
-            # Start the multi-container stack in the background
-            docker compose up -d
+            # Start the multi-container stack in the background with forced recreation
+            docker compose up -d --force-recreate
