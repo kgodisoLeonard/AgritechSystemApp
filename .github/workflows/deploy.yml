@@ -33,6 +33,9 @@ jobs:
             # Log into the GitHub Container Registry using your token
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u AyandaDev --password-stdin
             
+            # Pull the latest images from GHCR
+            docker compose pull
+            
             # Stop the currently running containers safely
             docker compose down
             
