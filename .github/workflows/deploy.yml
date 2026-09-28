@@ -38,3 +38,10 @@ jobs:
             
             # Start the multi-container stack in the background with forced recreation
             docker compose up -d --force-recreate
+
+            # Wait for PostgreSQL to be completely ready and accepting connections
+            echo "Waiting for database to be ready..."
+            until docker compose exec -T db pg_isready -U agritech_user -d agritech; do
+              sleep 2
+            done
+            echo "Database is ready and accepting connections!"
