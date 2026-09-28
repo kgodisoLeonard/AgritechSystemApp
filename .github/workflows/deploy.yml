@@ -1,10 +1,15 @@
 name: Deploy to Oracle Cloud VPS
 
-# Defines when this workflow will run (on any push to the main branch)
+# Defines when this workflow will run (on any push/pull to the main and feature branches)
 on:
   push:
     branches:
       - main
+      - feature/ayanda-finance-api
+  pull_request:
+    branches:
+      - main
+      - feature/ayanda-finance-api
 
 jobs:
   deploy:
