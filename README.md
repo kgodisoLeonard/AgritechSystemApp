@@ -82,6 +82,26 @@ This builds the container stack and starts:
 
 - PostgreSQL on `localhost:5433`
 - Node API on `localhost:3000`
+- Spring Boot finance and AI API on `localhost:8081`
+- Ollama on `localhost:11434`
+
+Set `POSTGRES_PASSWORD` in `.env`, then start everything with:
+
+```bash
+cd api/agritech-finance-api && ./mvnw package && cd ../..
+docker compose up -d --build
+```
+
+On first startup, Compose pulls the lightweight `qwen2.5:0.5b` model. Test the
+chat endpoint after `ollama-model` completes:
+
+```bash
+curl -X POST http://localhost:8081/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"Which vegetables grow well in Johannesburg in summer?"}'
+```
+
+Set `AI_MODEL` in `.env` to select a different Ollama model.
 
 The schema and seed data are loaded on the first startup of a new database
 volume.
@@ -91,6 +111,7 @@ Container Registry and deploys them to the VPS:
 
 - `ghcr.io/kgodisoleonard/agritech-db`
 - `ghcr.io/kgodisoleonard/agritech-api`
+- `ghcr.io/kgodisoleonard/agritech-finance-ai`
 
 Before the VPS deployment can run, add these repository secrets in GitHub under
 Settings -> Secrets and variables -> Actions:
