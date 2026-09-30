@@ -5,7 +5,7 @@ WORKDIR /app
 # Copy the specific api folder contents into the container workdir
 COPY api/agritech-finance-api/ .
 
-RUN ./mvnw clean package -DskipTests
+RUN chmod +x mvnw && ./mvnw clean package -DskipTests
 
 # Stage 2: Run the application
 FROM eclipse-temurin:17-jre-jammy
