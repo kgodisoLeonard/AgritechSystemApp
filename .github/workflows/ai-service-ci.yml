@@ -1,0 +1,40 @@
+name: AI service CI
+
+on:
+  push:
+    paths:
+      - "api/agritech-finance-api/**"
+      - "docker-compose.yml"
+      - ".github/workflows/ai-service-ci.yml"
+  pull_request:
+    paths:
+      - "api/agritech-finance-api/**"
+      - "docker-compose.yml"
+      - ".github/workflows/ai-service-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api/agritech-finance-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Test Ollama integration
+        run: ./mvnw -Dtest=ChatServiceTest test
+      - name: Package Spring Boot service
+        run: ./mvnw -DskipTests package
+      - name: Validate Compose configuration
+        working-directory: .
+        env:
+          POSTGRES_PASSWORD: ci-password
+        run: docker compose config --quiet
+      - name: Build AI API image
+        working-directory: .
+        run: docker build -f api/agritech-finance-api/Dockerfile -t agritech-finance-ai:test .

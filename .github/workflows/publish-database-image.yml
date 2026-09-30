@@ -9,6 +9,7 @@ on:
 env:
   DB_IMAGE: ghcr.io/kgodisoleonard/agritech-db
   API_IMAGE: ghcr.io/kgodisoleonard/agritech-api
+  AI_IMAGE: ghcr.io/kgodisoleonard/agritech-finance-ai
 
 jobs:
   publish-images:
@@ -57,6 +58,17 @@ jobs:
           tags: |
             ${{ env.API_IMAGE }}:latest
             ${{ env.API_IMAGE }}:${{ github.sha }}
+
+      - name: Build and push Spring AI image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: api/agritech-finance-api/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.AI_IMAGE }}:latest
+            ${{ env.AI_IMAGE }}:${{ github.sha }}
 
   vps-secrets:
     runs-on: ubuntu-latest
