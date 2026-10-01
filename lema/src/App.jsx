@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { logEntry, getGroups, joinGroup, getSuppliers } from './api/client';
 import { TIERS, seedEntries, seedGroups, seedSuppliers } from './data';
+import Landing from './Landing';
 
 const R = (n) => 'R ' + Math.round(n).toLocaleString('en-ZA');
 const MONTHS = ['May', 'Jun', 'Jul', 'Aug', 'Sep'];
@@ -201,9 +202,12 @@ export default function App() {
   const join = async (id) => { setJoined((p) => [...p, id]); await joinGroup(id, 1); setToast('You joined the pool. The supplier is told when it fills.'); };
 
   const tabs = useMemo(() => [['ledger', 'My farm'], ['groups', 'Group buying'], ['suppliers', 'Suppliers']], []);
+  const appRef = useRef(null);
+  const launchApp = () => { setTab('ledger'); appRef.current?.scrollIntoView({ behavior: 'smooth' }); };
   return (
     <>
-      <header className="bar">
+      <Landing onLaunch={launchApp} />
+      <header id="app" ref={appRef} className="bar">
         <div className="logo"><span className="mark" />Lema</div>
         <nav>{tabs.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</nav>
       </header>
