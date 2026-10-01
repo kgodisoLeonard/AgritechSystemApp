@@ -1,4 +1,6 @@
-/* Marketing landing page: hero, stats, how-it-works, testimonial, supplier CTA */
+/* Public marketing pages: Home, How it works, For suppliers.
+   Each is a real route (no scroll-to-anchor) so every nav link/button opens its own page. */
+import { Link, NavLink } from 'react-router-dom';
 
 const HERO_IMG = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1600&q=80';
 const PLOT_IMG = 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=500&q=80';
@@ -22,18 +24,25 @@ function Icon({ name }) {
   return null;
 }
 
-export default function Landing({ onLaunch }) {
+/* Shared top nav for every public (non-app) page */
+export function PublicNav() {
+  return (
+    <nav className="nav2">
+      <Link to="/" className="logo2"><Mark /> Lema</Link>
+      <div className="links2">
+        <NavLink to="/how-it-works" className={({ isActive }) => (isActive ? 'on' : '')}>How it works</NavLink>
+        <NavLink to="/for-suppliers" className={({ isActive }) => (isActive ? 'on' : '')}>For suppliers</NavLink>
+        <NavLink to="/app/ledger" className={({ isActive }) => (isActive ? 'on' : '')}>My farm app</NavLink>
+      </div>
+      <Link className="btn ghost" to="/app/ledger">Open the app</Link>
+    </nav>
+  );
+}
+
+export function Home() {
   return (
     <div className="landing">
-      <nav className="nav2">
-        <div className="logo2"><Mark /> Lema</div>
-        <div className="links2">
-          <a href="#how">How it works</a>
-          <a href="#suppliers2">For suppliers</a>
-          <a href="#app">My farm app</a>
-        </div>
-        <button className="btn ghost" onClick={onLaunch}>Open the app</button>
-      </nav>
+      <PublicNav />
 
       <section className="hero2" style={{ backgroundImage: `linear-gradient(100deg, rgba(18,59,46,.94) 0%, rgba(18,59,46,.74) 40%, rgba(18,59,46,.15) 100%), url(${HERO_IMG})` }}>
         <div className="hero2-content">
@@ -42,8 +51,8 @@ export default function Landing({ onLaunch }) {
           <p>Log every sale and expense in seconds, let Lema's AI spot buying patterns, and get matched with nearby
             farmers ordering the same input — so your whole group unlocks bulk pricing from a trusted local supplier.</p>
           <div className="hero2-cta">
-            <button className="btn" onClick={onLaunch}>Start tracking my farm</button>
-            <a className="btn outline" href="#how">See how it works</a>
+            <Link className="btn" to="/app/ledger">Start tracking my farm</Link>
+            <Link className="btn outline" to="/how-it-works">See how it works</Link>
           </div>
           <div className="stats-row">
             <div className="stat"><b>500+</b><span>Farmers onboarded</span></div>
@@ -53,11 +62,60 @@ export default function Landing({ onLaunch }) {
         </div>
       </section>
 
-      <section className="features" id="how">
+      <section className="features">
         <div className="head">
-          <h2>From notebook to numbers, in three steps</h2>
+          <h2>Three doors, three jobs</h2>
+          <p>Each card opens its own page in the app — nothing here is just a scroll.</p>
+        </div>
+        <div className="grid feat-grid">
+          <Link className="panel feature" to="/app/ledger">
+            <span className="feature-icon"><Icon name="ledger" /></span>
+            <h3>My farm ledger</h3>
+            <p>Log what you spend and sell. See your profit and a loan-readiness score build automatically.</p>
+          </Link>
+          <Link className="panel feature" to="/app/groups">
+            <span className="feature-icon"><Icon name="ai" /></span>
+            <h3>Group buying</h3>
+            <p>See the pools Lema's AI has matched for you and join one to unlock bulk pricing.</p>
+          </Link>
+          <Link className="panel feature" to="/app/suppliers">
+            <span className="feature-icon"><Icon name="group" /></span>
+            <h3>Suppliers directory</h3>
+            <p>Browse the local agri-stores and co-ops we've checked and onboarded by hand.</p>
+          </Link>
+        </div>
+      </section>
+
+      <section className="quote">
+        <img src={FARMER_IMG} alt="A smiling farmer" />
+        <blockquote>
+          “I used to guess if I made money this season. Now I can show six months of real numbers — and I bought my
+          fertiliser twelve percent cheaper by waiting two days for the group to fill.”
+          <cite>— Small-scale maize &amp; vegetable farmer, Limpopo</cite>
+        </blockquote>
+      </section>
+
+      <section className="cta-strip">
+        <h2>Your farm's finances, finally working for you.</h2>
+        <Link className="btn" to="/app/ledger">Open my farm ledger</Link>
+      </section>
+    </div>
+  );
+}
+
+export function HowItWorks() {
+  return (
+    <div className="landing">
+      <PublicNav />
+      <section className="hero2 plain">
+        <div className="hero2-content">
+          <span className="pill">How it works</span>
+          <h1>From notebook to numbers, <span className="hi">in three steps.</span></h1>
           <p>No accountant, no spreadsheets — just an app that watches your money and your market for you.</p>
         </div>
+      </section>
+
+      <section className="features">
         <div className="grid feat-grid">
           <article className="panel feature">
             <span className="feature-icon"><Icon name="ledger" /></span>
@@ -90,10 +148,30 @@ export default function Landing({ onLaunch }) {
         </div>
       </section>
 
-      <section className="split reverse" id="suppliers2">
+      <section className="cta-strip">
+        <h2>Ready to see your own numbers?</h2>
+        <Link className="btn" to="/app/ledger">Open my farm ledger</Link>
+      </section>
+    </div>
+  );
+}
+
+export function ForSuppliers() {
+  return (
+    <div className="landing">
+      <PublicNav />
+      <section className="hero2 plain">
+        <div className="hero2-content">
+          <span className="pill">For suppliers</span>
+          <h1>Ready buyers, <span className="hi">not more paperwork.</span></h1>
+          <p>We hand-pick and onboard local agri-stores and co-ops. When a group order forms in your area, you get one simple notification.</p>
+        </div>
+      </section>
+
+      <section className="split reverse">
         <div>
-          <h2>Suppliers get ready buyers, not more paperwork</h2>
-          <p>We hand-pick and onboard local agri-stores and co-ops. When a group order forms in your area, you get one simple notification — payment and delivery stay exactly how they already work between you and the farmer.</p>
+          <h2>Payment and delivery stay exactly how they already work</h2>
+          <p>Nothing changes about how you run your business today — Lema only tells you when real, confirmed demand is ready to buy from you.</p>
           <ul className="check">
             <li>A free, simple listing for your business</li>
             <li>Alerted only when real demand is confirmed</li>
@@ -103,18 +181,9 @@ export default function Landing({ onLaunch }) {
         <img src={CROP_IMG} alt="Fresh harvested crops ready for market" loading="lazy" />
       </section>
 
-      <section className="quote">
-        <img src={FARMER_IMG} alt="A smiling farmer" />
-        <blockquote>
-          “I used to guess if I made money this season. Now I can show six months of real numbers — and I bought my
-          fertiliser twelve percent cheaper by waiting two days for the group to fill.”
-          <cite>— Small-scale maize &amp; vegetable farmer, Limpopo</cite>
-        </blockquote>
-      </section>
-
       <section className="cta-strip">
-        <h2>Your farm's finances, finally working for you.</h2>
-        <button className="btn" onClick={onLaunch}>Open my farm ledger</button>
+        <h2>See the suppliers already on Lema</h2>
+        <Link className="btn" to="/app/suppliers">Browse the directory</Link>
       </section>
     </div>
   );

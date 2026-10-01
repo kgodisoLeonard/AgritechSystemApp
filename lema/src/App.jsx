@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Routes, Route, Link, NavLink } from 'react-router-dom';
 import { logEntry, getGroups, joinGroup, getSuppliers } from './api/client';
 import { TIERS, seedEntries, seedGroups, seedSuppliers } from './data';
-import Landing from './Landing';
+import { Home, HowItWorks, ForSuppliers } from './pages';
 
 const R = (n) => 'R ' + Math.round(n).toLocaleString('en-ZA');
 const MONTHS = ['May', 'Jun', 'Jul', 'Aug', 'Sep'];
@@ -181,8 +182,34 @@ function Suppliers({ suppliers }) {
 }
 
 /* ---------- Shell ---------- */
+function AppShell({ entries, groups, suppliers, joined, add, join }) {
+  const tabs = useMemo(() => [
+    ['ledger', 'My farm'],
+    ['groups', 'Group buying'],
+    ['suppliers', 'Suppliers'],
+  ], []);
+  return (
+    <>
+      <header className="bar">
+        <Link to="/" className="logo"><span className="mark" />Lema</Link>
+        <nav>{tabs.map(([k, l]) => (
+          <NavLink key={k} to={`/app/${k}`} className={({ isActive }) => (isActive ? 'on' : '')}>{l}</NavLink>
+        ))}</nav>
+      </header>
+      <main>
+        <Routes>
+          <Route path="ledger" element={<Ledger entries={entries} onAdd={add} />} />
+          <Route path="groups" element={<Groups groups={groups} joined={joined} onJoin={join} />} />
+          <Route path="suppliers" element={<Suppliers suppliers={suppliers} />} />
+          <Route index element={<Ledger entries={entries} onAdd={add} />} />
+        </Routes>
+      </main>
+      <footer>Lema · Records backed up · Payment and delivery happen between you and the supplier</footer>
+    </>
+  );
+}
+
 export default function App() {
-  const [tab, setTab] = useState('ledger');
   const [entries, setEntries] = useState(() => JSON.parse(localStorage.getItem('lema.entries') || 'null') || seedEntries);
   const [groups, setGroups] = useState(seedGroups);
   const [suppliers, setSuppliers] = useState(seedSuppliers);
@@ -201,22 +228,17 @@ export default function App() {
   };
   const join = async (id) => { setJoined((p) => [...p, id]); await joinGroup(id, 1); setToast('You joined the pool. The supplier is told when it fills.'); };
 
-  const tabs = useMemo(() => [['ledger', 'My farm'], ['groups', 'Group buying'], ['suppliers', 'Suppliers']], []);
-  const appRef = useRef(null);
-  const launchApp = () => { setTab('ledger'); appRef.current?.scrollIntoView({ behavior: 'smooth' }); };
   return (
     <>
-      <Landing onLaunch={launchApp} />
-      <header id="app" ref={appRef} className="bar">
-        <div className="logo"><span className="mark" />Lema</div>
-        <nav>{tabs.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</nav>
-      </header>
-      <main>
-        {tab === 'ledger' && <Ledger entries={entries} onAdd={add} />}
-        {tab === 'groups' && <Groups groups={groups} joined={joined} onJoin={join} />}
-        {tab === 'suppliers' && <Suppliers suppliers={suppliers} />}
-      </main>
-      <footer>Lema · Records backed up · Payment and delivery happen between you and the supplier</footer>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/how-it-works" element={<HowItWorks />} />
+        <Route path="/for-suppliers" element={<ForSuppliers />} />
+        <Route
+          path="/app/*"
+          element={<AppShell entries={entries} groups={groups} suppliers={suppliers} joined={joined} add={add} join={join} />}
+        />
+      </Routes>
       {toast && <div className="toast" role="status">{toast}</div>}
     </>
   );
