@@ -111,6 +111,18 @@ services:
         condition: service_healthy
     restart: "no"
 
+  lema-frontend:
+    build:
+      context: ./lema
+      dockerfile: Dockerfile
+      args:
+        VITE_FINANCE_API_URL: ${LEMA_FINANCE_API_URL:-http://localhost:8081/api}
+    image: ghcr.io/kgodisoleonard/agritech-lema-frontend:latest
+    container_name: agritech_lema_frontend
+    restart: unless-stopped
+    ports:
+      - "8090:80"
+
 
 volumes:
   agritech_data:
