@@ -152,6 +152,19 @@ jobs:
             cd ~/agritech-db
             printf 'POSTGRES_PASSWORD=%s\nNODE_ENV=production\n' '$POSTGRES_PASSWORD' > .env
             chmod 600 .env
+            echo --- allow HTTP in host firewall ---
+            if command -v ufw >/dev/null 2>&1; then
+              ufw_status=\$(sudo -n ufw status 2>&1)
+              printf '%s\n' "\$ufw_status"
+              if printf '%s' "\$ufw_status" | grep -q 'Status: active'; then
+                sudo -n ufw allow 80/tcp || echo HOST_FIREWALL_ALLOW_FAILED
+              fi
+            elif command -v firewall-cmd >/dev/null 2>&1 && sudo -n firewall-cmd --state >/dev/null 2>&1; then
+              sudo -n firewall-cmd --permanent --add-service=http || echo HOST_FIREWALL_ALLOW_FAILED
+              sudo -n firewall-cmd --reload || echo HOST_FIREWALL_RELOAD_FAILED
+            else
+              echo NO_ACTIVE_SUPPORTED_HOST_FIREWALL
+            fi
             docker login ghcr.io -u '${{ github.actor }}' --password-stdin
             docker compose pull
             echo --- vps architecture ---
