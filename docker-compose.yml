@@ -122,7 +122,7 @@ services:
     container_name: agritech_lema_frontend
     restart: unless-stopped
     ports:
-      - "8090:80"
+      - "80:80"
 
 
 volumes:
