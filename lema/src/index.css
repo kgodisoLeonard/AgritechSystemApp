@@ -61,6 +61,27 @@ small{display:block;color:var(--muted)}
 .tags span{background:var(--sky);border-radius:99px;padding:2px 12px;font-size:13px}
 .status{font-size:14px;color:var(--soil);margin-bottom:0}.status.ok{color:var(--good)}
 footer{text-align:center;color:var(--muted);font-size:13px;padding:24px}
+.error-text{color:var(--bad);font-size:14px;margin:6px 0}
+.link-btn{background:none;border:0;color:var(--forest);font-weight:600;cursor:pointer;padding:0;text-decoration:underline}
+.bar .link-btn{color:#C9DDD3}
+.insights{margin-top:0}
+.insight-row{background:var(--sky);border-radius:10px;padding:8px 12px;font-size:14px;margin:0 0 8px}
+.join-row{display:flex;gap:8px;align-items:center;margin-top:10px}
+.join-row input{width:72px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--paper)}
+.join-row .btn{width:auto;flex:1}
+.auth-gate{min-height:70vh;display:grid;place-items:center;padding:40px 16px}
+.auth-card{max-width:400px;width:100%}
+.auth-card h2{margin-bottom:6px}
+.auth-card .btn{margin-top:4px}
+.auth-card .link-btn{display:block;margin:14px auto 0;text-align:center}
+.chat-panel{display:flex;flex-direction:column;gap:14px;min-height:360px}
+.chat-log{flex:1;display:flex;flex-direction:column;gap:10px;overflow-y:auto;max-height:420px}
+.bubble{max-width:80%;padding:10px 14px;border-radius:14px;margin:0}
+.bubble.me{align-self:flex-end;background:var(--maize);color:var(--forest)}
+.bubble.ai{align-self:flex-start;background:var(--sky)}
+.chat-form{display:flex;gap:10px}
+.chat-form input{flex:1;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+.chat-form .btn{width:auto;padding:12px 22px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--forest);color:#fff;padding:14px 22px;border-radius:14px;max-width:92vw;box-shadow:0 10px 30px #0004;animation:in .3s}
 @keyframes in{from{opacity:0;transform:translate(-50%,12px)}}
 @media(max-width:820px){.ledger{grid-template-columns:1fr}.ledger .hero{grid-row:auto}.pool{grid-template-columns:96px 1fr}.silo{width:96px}}

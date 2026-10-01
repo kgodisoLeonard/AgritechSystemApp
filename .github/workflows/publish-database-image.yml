@@ -78,6 +78,7 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           build-args: |
+            VITE_API_URL=http://92.4.134.156:3000/api
             VITE_FINANCE_API_URL=http://92.4.134.156:8081/api
           tags: |
             ${{ env.LEMA_IMAGE }}:latest
@@ -182,6 +183,8 @@ jobs:
               echo waiting-for-database
               sleep 3
             done
+            echo --- database migrations ---
+            docker exec agritech_db psql -U agritech_user -d agritech -c 'ALTER TABLE farmers ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);' || echo MIGRATION_FAILED
             echo --- database container logs ---
             docker logs --tail 60 agritech_db 2>&1 || echo NO_DB_LOGS
             echo --- database compose logs ---
