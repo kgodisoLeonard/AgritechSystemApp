@@ -121,6 +121,30 @@ Settings -> Secrets and variables -> Actions:
 - `VPS_SSH_KEY`
 - `POSTGRES_PASSWORD`
 
+### Opening the public HTTP port automatically
+
+The VPS's own firewall (ufw/firewalld) is opened automatically during deploy,
+but Oracle Cloud also enforces a separate, cloud-level firewall (a Security
+List or Network Security Group) in front of the instance that the VPS itself
+cannot change. If the site is unreachable on port 80 from the internet while
+still responding locally on the VPS, that cloud-level firewall is the cause.
+
+To let the deploy workflow open it automatically, add these additional
+repository secrets (OCI Console -> Profile -> My profile -> API keys -> Add
+API key, using the public key already generated for this project):
+
+- `OCI_CLI_USER` - the `user` OCID shown after adding the API key
+- `OCI_CLI_FINGERPRINT` - the key fingerprint shown after adding the API key
+- `OCI_CLI_TENANCY` - your tenancy OCID
+- `OCI_CLI_REGION` - e.g. `af-johannesburg-1`
+- `OCI_CLI_KEY` - the private key (`oci_api_key.pem`) paired with that API key
+
+Once all five are set, the `open-oci-firewall` job in
+`.github/workflows/publish-database-image.yml` finds the instance by its
+public IP and adds a TCP 80 ingress rule to its security list on every
+deploy (skipping it if already present). Until then, it just logs a warning
+and the rest of the deploy proceeds unaffected.
+
 Then run GitHub -> Actions -> Deploy API stack to VPS -> Run workflow -> main. Check that
 the `deploy` job says success. If the VPS secrets are missing, the workflow will
 still publish the image, but the `deploy` job will be skipped.
