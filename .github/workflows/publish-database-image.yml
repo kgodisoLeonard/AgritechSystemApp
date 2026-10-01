@@ -105,12 +105,115 @@ jobs:
             echo "configured=false" >> "$GITHUB_OUTPUT"
           fi
 
+  # Opens inbound TCP 80 in the Oracle Cloud Security List/NSG in front of the
+  # VPS. This is a cloud-level virtual firewall the VPS's own ufw/iptables
+  # cannot reach, so it must be changed via the OCI API. No-ops (with a
+  # warning) until the OCI_CLI_* repository secrets below are configured,
+  # so it is safe to leave in place either way.
+  open-oci-firewall:
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    env:
+      OCI_CLI_USER: ${{ secrets.OCI_CLI_USER }}
+      OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
+      OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
+      OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
+      OCI_CLI_KEY: ${{ secrets.OCI_CLI_KEY }}
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+    steps:
+      - name: Check OCI CLI secrets
+        id: check
+        run: |
+          if [ -n "$OCI_CLI_USER" ] && [ -n "$OCI_CLI_FINGERPRINT" ] && [ -n "$OCI_CLI_TENANCY" ] && [ -n "$OCI_CLI_REGION" ] && [ -n "$OCI_CLI_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Skipping OCI firewall fix. Configure OCI_CLI_USER, OCI_CLI_FINGERPRINT, OCI_CLI_TENANCY, OCI_CLI_REGION, and OCI_CLI_KEY repository secrets to automate opening TCP 80 in the Oracle Cloud Security List."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install OCI CLI
+        if: steps.check.outputs.configured == 'true'
+        run: pip install --quiet oci-cli
+
+      - name: Configure OCI CLI
+        if: steps.check.outputs.configured == 'true'
+        run: |
+          mkdir -p ~/.oci
+          printf '%s' "$OCI_CLI_KEY" > ~/.oci/key.pem
+          chmod 600 ~/.oci/key.pem
+          cat > ~/.oci/config <<EOF
+          [DEFAULT]
+          user=$OCI_CLI_USER
+          fingerprint=$OCI_CLI_FINGERPRINT
+          tenancy=$OCI_CLI_TENANCY
+          region=$OCI_CLI_REGION
+          key_file=~/.oci/key.pem
+          EOF
+          chmod 600 ~/.oci/config
+
+      - name: Open TCP 80 in the instance's security list
+        if: steps.check.outputs.configured == 'true'
+        run: |
+          set -e
+          echo "Locating the OCI instance with public IP $VPS_HOST ..."
+          instance_id=$(oci search resource-type structured-search \
+            --query-text "query instance resources where lifecycleState = 'RUNNING'" \
+            --query "data.items[*].identifier" --raw-output | tr -d '[]", ' | \
+            while read -r id; do
+              [ -z "$id" ] && continue
+              ip=$(oci compute instance list-vnics --instance-id "$id" \
+                --query "data[0].\"public-ip\"" --raw-output 2>/dev/null)
+              if [ "$ip" = "$VPS_HOST" ]; then echo "$id"; break; fi
+            done)
+          if [ -z "$instance_id" ]; then
+            echo "::error::Could not find an OCI instance with public IP $VPS_HOST. Check OCI_CLI_TENANCY/region or that the key has been added to the OCI user and the user has network read/update permissions."
+            exit 1
+          fi
+          echo "Found instance $instance_id"
+          subnet_id=$(oci compute instance list-vnics --instance-id "$instance_id" \
+            --query "data[0].\"subnet-id\"" --raw-output)
+          seclist_ids=$(oci network subnet get --subnet-id "$subnet_id" \
+            --query "data.\"security-list-ids\"" --raw-output | tr -d '[]", ')
+          for seclist_id in $seclist_ids; do
+            [ -z "$seclist_id" ] && continue
+            echo "Checking security list $seclist_id ..."
+            has80=$(oci network security-list get --security-list-id "$seclist_id" \
+              --query "data.\"ingress-security-rules\"[?protocol=='6' && \"tcp-options\".\"destination-port-range\".min==\`80\`] | length(@)")
+            if [ "$has80" != "0" ]; then
+              echo "TCP 80 already allowed in $seclist_id - nothing to do."
+              continue
+            fi
+            oci network security-list get --security-list-id "$seclist_id" \
+              --query "data.\"ingress-security-rules\"" > /tmp/current-rules.json
+            python3 -c "
+          import json
+          with open('/tmp/current-rules.json') as f:
+              rules = json.load(f)
+          rules.append({
+              'source': '0.0.0.0/0',
+              'protocol': '6',
+              'isStateless': False,
+              'tcpOptions': {'destinationPortRange': {'min': 80, 'max': 80}}
+          })
+          with open('/tmp/ingress.json', 'w') as f:
+              json.dump(rules, f)
+          "
+            oci network security-list update --security-list-id "$seclist_id" \
+              --ingress-security-rules file:///tmp/ingress.json --force
+            echo "Added TCP 80 ingress rule to $seclist_id."
+          done
+
   deploy:
     runs-on: ubuntu-latest
     needs:
       - publish-images
       - vps-secrets
-    if: needs.vps-secrets.outputs.configured == 'true'
+      - open-oci-firewall
+    # open-oci-firewall is best-effort (opens the cloud-level firewall ahead
+    # of deploy, if its secrets are configured); a failure there must not
+    # block the actual container deploy, which only needs vps-secrets.
+    if: needs.publish-images.result == 'success' && needs.vps-secrets.outputs.configured == 'true'
     environment: production
     permissions:
       contents: read
