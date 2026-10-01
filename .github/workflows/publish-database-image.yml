@@ -154,20 +154,28 @@ jobs:
 
       - name: Open TCP 80 in the instance's security list
         if: steps.check.outputs.configured == 'true'
+        env:
+          # Known OCID of the production VPS instance (South Africa Central /
+          # Johannesburg). OCIDs are opaque resource identifiers, not secrets.
+          KNOWN_INSTANCE_ID: ocid1.instance.oc1.af-johannesburg-1.anvg4ljrdllrj7acwmj2wdvtx3wdm2dwht3vzpymzrth2ezej5442t6nolna
         run: |
           set -e
-          echo "Locating the OCI instance with public IP $VPS_HOST ..."
-          instance_id=$(oci search resource-type structured-search \
-            --query-text "query instance resources where lifecycleState = 'RUNNING'" \
-            --query "data.items[*].identifier" --raw-output | tr -d '[]", ' | \
-            while read -r id; do
-              [ -z "$id" ] && continue
-              ip=$(oci compute instance list-vnics --instance-id "$id" \
-                --query "data[0].\"public-ip\"" --raw-output 2>/dev/null)
-              if [ "$ip" = "$VPS_HOST" ]; then echo "$id"; break; fi
-            done)
+          instance_id="$KNOWN_INSTANCE_ID"
+          echo "Verifying known instance $instance_id is reachable ..."
+          if ! oci compute instance get --instance-id "$instance_id" >/dev/null 2>&1; then
+            echo "Known instance OCID not reachable, falling back to locating by public IP $VPS_HOST ..."
+            instance_id=$(oci search resource-type structured-search \
+              --query-text "query instance resources where lifecycleState = 'RUNNING'" \
+              --query "data.items[*].identifier" --raw-output | tr -d '[]", ' | \
+              while read -r id; do
+                [ -z "$id" ] && continue
+                ip=$(oci compute instance list-vnics --instance-id "$id" \
+                  --query "data[0].\"public-ip\"" --raw-output 2>/dev/null)
+                if [ "$ip" = "$VPS_HOST" ]; then echo "$id"; break; fi
+              done)
+          fi
           if [ -z "$instance_id" ]; then
-            echo "::error::Could not find an OCI instance with public IP $VPS_HOST. Check OCI_CLI_TENANCY/region or that the key has been added to the OCI user and the user has network read/update permissions."
+            echo "::error::Could not find the OCI instance (tried known OCID and public IP $VPS_HOST). Check OCI_CLI_TENANCY/region or that the key has been added to the OCI user and the user has network read/update permissions."
             exit 1
           fi
           echo "Found instance $instance_id"
