@@ -116,6 +116,7 @@ services:
       context: ./lema
       dockerfile: Dockerfile
       args:
+        VITE_API_URL: ${LEMA_API_URL:-http://localhost:3000/api}
         VITE_FINANCE_API_URL: ${LEMA_FINANCE_API_URL:-http://localhost:8081/api}
     image: ghcr.io/kgodisoleonard/agritech-lema-frontend:latest
     container_name: agritech_lema_frontend

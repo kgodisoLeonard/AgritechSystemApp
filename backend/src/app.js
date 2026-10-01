@@ -129,8 +129,8 @@ app.get('/api/group-orders', async (_req, res) => {
   try {
     const result = await query(`
       SELECT go.id, go.status, go.target_quantity, go.current_quantity, go.discount_rate,
-             sp.product_name,
-             s.name AS supplier_name
+             go.product_id, sp.product_name, sp.price AS unit_price,
+             go.supplier_id, s.name AS supplier_name, s.location AS supplier_location
       FROM group_orders go
       JOIN supplier_products sp ON sp.id = go.product_id
       JOIN suppliers s ON s.id = go.supplier_id
