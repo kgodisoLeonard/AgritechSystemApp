@@ -56,4 +56,5 @@ export const joinGroupOrder = (id, body) => call(api.post(`/group-orders/${id}/j
 
 /* ---------- AI recommendations + supplier notifications (Node api) ---------- */
 export const getRecommendations = (farmerId) => call(api.get(`/farmers/${farmerId}/recommendations`));
+export const refreshRecommendations = () => call(api.post('/ai/recommendations/refresh'));
 export const getNotifications = () => call(api.get('/notifications'));

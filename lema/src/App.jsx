@@ -67,13 +67,13 @@ function LoanMeter({ entries, months }) {
   );
 }
 
-function Insights({ farmerId }) {
+function Insights({ farmerId, refreshKey }) {
   const [items, setItems] = useState(null);
   useEffect(() => {
     let live = true;
     getRecommendations(farmerId).then(({ data }) => { if (live) setItems(Array.isArray(data) ? data : []); });
     return () => { live = false; };
-  }, [farmerId]);
+  }, [farmerId, refreshKey]);
   return (
     <div className="panel insights">
       <h3>AI insights</h3>
@@ -88,7 +88,7 @@ function Insights({ farmerId }) {
   );
 }
 
-function Ledger({ entries, onAdd, busy, error, farmerId, months }) {
+function Ledger({ entries, onAdd, busy, error, farmerId, months, recoRefreshKey }) {
   const [f, setF] = useState({ type: 'expense', item: '', category: 'general', amount: '', location: '' });
   const sales = entries.filter((e) => e.type === 'sale').reduce((a, e) => a + e.amount, 0);
   const costs = entries.filter((e) => e.type === 'expense').reduce((a, e) => a + e.amount, 0);
@@ -124,7 +124,7 @@ function Ledger({ entries, onAdd, busy, error, farmerId, months }) {
         {error && <p className="error-text">{error}</p>}
         <button className="btn" disabled={busy}>{busy ? 'Saving…' : 'Save entry'}</button>
       </form>
-      <Insights farmerId={farmerId} />
+      <Insights farmerId={farmerId} refreshKey={recoRefreshKey} />
       <section className="panel wide">
         <h3>Recent entries</h3>
         {!entries.length && <p className="muted">No entries yet. Log your first sale or expense above.</p>}
@@ -252,7 +252,7 @@ function Suppliers({ suppliers, notifications }) {
 }
 
 /* ---------- Shell ---------- */
-function AppShell({ farmer, onLogout, entries, groups, suppliers, notifications, joined, add, join, addBusy, addError, joinBusyId, joinError, months }) {
+function AppShell({ farmer, onLogout, entries, groups, suppliers, notifications, joined, add, join, addBusy, addError, joinBusyId, joinError, months, recoRefreshKey }) {
   const tabs = useMemo(() => [
     ['ledger', 'My farm'],
     ['groups', 'Group buying'],
@@ -270,11 +270,11 @@ function AppShell({ farmer, onLogout, entries, groups, suppliers, notifications,
       </header>
       <main>
         <Routes>
-          <Route path="ledger" element={<Ledger entries={entries} onAdd={add} busy={addBusy} error={addError} farmerId={farmer.id} months={months} />} />
+          <Route path="ledger" element={<Ledger entries={entries} onAdd={add} busy={addBusy} error={addError} farmerId={farmer.id} months={months} recoRefreshKey={recoRefreshKey} />} />
           <Route path="groups" element={<Groups groups={groups} joined={joined} onJoin={join} busyId={joinBusyId} error={joinError} />} />
           <Route path="suppliers" element={<Suppliers suppliers={suppliers} notifications={notifications} />} />
           <Route path="assistant" element={<Assistant />} />
-          <Route index element={<Ledger entries={entries} onAdd={add} busy={addBusy} error={addError} farmerId={farmer.id} months={months} />} />
+          <Route index element={<Ledger entries={entries} onAdd={add} busy={addBusy} error={addError} farmerId={farmer.id} months={months} recoRefreshKey={recoRefreshKey} />} />
         </Routes>
       </main>
       <footer>Lema · Records backed up · Payment and delivery happen between you and the supplier</footer>
@@ -294,6 +294,7 @@ export default function App() {
   const [addError, setAddError] = useState('');
   const [joinBusyId, setJoinBusyId] = useState(null);
   const [joinError, setJoinError] = useState('');
+  const [recoRefreshKey, setRecoRefreshKey] = useState(0);
   const months = useMemo(() => recentMonths(5), []);
 
   const onAuthed = (data) => {
@@ -357,6 +358,12 @@ export default function App() {
       return;
     }
     setEntries((p) => [...p, { ...data, type: e.type, month: monthOf(data.date) }]);
+    if (e.type === 'expense') {
+      // The backend reclusters farmers by spending pattern synchronously
+      // when an expense is saved, so by the time this resolves fresh
+      // recommendations may already exist — bump the key to refetch them.
+      setRecoRefreshKey((k) => k + 1);
+    }
     setToast(e.type === 'expense' ? 'Saved. Checking for farmers buying the same input near you.' : 'Sale saved.');
   };
 
@@ -402,6 +409,7 @@ export default function App() {
                 joinBusyId={joinBusyId}
                 joinError={joinError}
                 months={months}
+                recoRefreshKey={recoRefreshKey}
               />
             ) : (
               <Auth onAuthed={onAuthed} />

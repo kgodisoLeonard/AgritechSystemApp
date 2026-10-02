@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { query } from './db.js';
+import { generateRecommendations } from './recommendations.js';
 
 const app = express();
 
@@ -66,6 +67,16 @@ app.post('/api/farmers/:id/expenses', async (req, res) => {
       'INSERT INTO expenses (farmer_id, item, category, amount, date) VALUES ($1, $2, $3, $4, CURRENT_DATE) RETURNING *',
       [req.params.id, item, category, amount]
     );
+
+    // Re-cluster farmers by spending pattern so the AI insights panel and
+    // group-buying matches reflect this new expense right away. Clustering
+    // failures must never break the expense save itself.
+    try {
+      await generateRecommendations();
+    } catch (recError) {
+      console.error('Failed to refresh AI recommendations:', recError);
+    }
+
     res.status(201).json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -175,6 +186,15 @@ app.get('/api/farmers/:id/recommendations', async (req, res) => {
       [req.params.id]
     );
     res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.post('/api/ai/recommendations/refresh', async (_req, res) => {
+  try {
+    const result = await generateRecommendations();
+    res.json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

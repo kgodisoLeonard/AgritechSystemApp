@@ -3,3 +3,5 @@
 pgdata/
 node_modules/
 target/
+
+.playwright-mcp/
