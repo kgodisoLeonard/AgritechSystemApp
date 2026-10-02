@@ -77,9 +77,9 @@ function Insights({ farmerId }) {
   return (
     <div className="panel insights">
       <h3>AI insights</h3>
-      {items === null && <p className="muted">Loadingâ€¦</p>}
+      {items === null && <p className="muted">Loading…</p>}
       {items && items.length === 0 && (
-        <p className="muted">Keep logging â€” Lema will start spotting patterns after a few entries.</p>
+        <p className="muted">Keep logging — Lema will start spotting patterns after a few entries.</p>
       )}
       {items && items.map((r) => (
         <p key={r.id} className="insight-row">{r.reason}</p>
@@ -122,7 +122,7 @@ function Ledger({ entries, onAdd, busy, error, farmerId, months }) {
         )}
         <input required type="number" min="1" placeholder="Amount in Rand" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} />
         {error && <p className="error-text">{error}</p>}
-        <button className="btn" disabled={busy}>{busy ? 'Savingâ€¦' : 'Save entry'}</button>
+        <button className="btn" disabled={busy}>{busy ? 'Saving…' : 'Save entry'}</button>
       </form>
       <Insights farmerId={farmerId} />
       <section className="panel wide">
@@ -131,7 +131,7 @@ function Ledger({ entries, onAdd, busy, error, farmerId, months }) {
         <ul className="list">
           {[...entries].reverse().slice(0, 8).map((e) => (
             <li key={e.id}>
-              <span>{e.item}<small>{e.month}{e.category ? ` Â· ${e.category}` : ''}</small></span>
+              <span>{e.item}<small>{e.month}{e.category ? ` · ${e.category}` : ''}</small></span>
               <b className={e.type === 'sale' ? 'pos' : 'neg'}>{e.type === 'sale' ? '+' : '-'}{R(e.amount)}</b>
             </li>
           ))}
@@ -178,11 +178,11 @@ function Groups({ groups, joined, onJoin, busyId, error }) {
               <Silo n={n} max={target} />
               <div>
                 <h3>{g.product_name}</h3>
-                <p className="muted">{g.supplier_name} Â· {g.supplier_location}</p>
+                <p className="muted">{g.supplier_name} · {g.supplier_location}</p>
                 {unit != null && (
-                  <p className="price"><s>{R(unit)}</s> <b>{R(discounted)}</b> each{off ? ` Â· ${off}% off` : ''}</p>
+                  <p className="price"><s>{R(unit)}</s> <b>{R(discounted)}</b> each{off ? ` · ${off}% off` : ''}</p>
                 )}
-                <p className="muted">{n} of {target} units filled{left ? ` Â· ${left} to go` : ' Â· full'}{g.status !== 'open' ? ` Â· ${g.status}` : ''}</p>
+                <p className="muted">{n} of {target} units filled{left ? ` · ${left} to go` : ' · full'}{g.status !== 'open' ? ` · ${g.status}` : ''}</p>
                 {g.status === 'open' && !already && (
                   <div className="join-row">
                     <input
@@ -198,7 +198,7 @@ function Groups({ groups, joined, onJoin, busyId, error }) {
                       disabled={busyId === g.id || unit == null}
                       onClick={() => onJoin(g.id, q, round2(discounted * q))}
                     >
-                      {busyId === g.id ? 'Joiningâ€¦' : 'Join this pool'}
+                      {busyId === g.id ? 'Joining…' : 'Join this pool'}
                     </button>
                   </div>
                 )}
@@ -277,7 +277,7 @@ function AppShell({ farmer, onLogout, entries, groups, suppliers, notifications,
           <Route index element={<Ledger entries={entries} onAdd={add} busy={addBusy} error={addError} farmerId={farmer.id} months={months} />} />
         </Routes>
       </main>
-      <footer>Lema Â· Records backed up Â· Payment and delivery happen between you and the supplier</footer>
+      <footer>Lema · Records backed up · Payment and delivery happen between you and the supplier</footer>
     </>
   );
 }

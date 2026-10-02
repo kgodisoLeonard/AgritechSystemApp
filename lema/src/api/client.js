@@ -57,3 +57,8 @@ export const joinGroupOrder = (id, body) => call(api.post(`/group-orders/${id}/j
 /* ---------- AI recommendations + supplier notifications (Node api) ---------- */
 export const getRecommendations = (farmerId) => call(api.get(`/farmers/${farmerId}/recommendations`));
 export const getNotifications = () => call(api.get('/notifications'));
+
+/* ---------- Machine-learning analytics (Spring finance API) ---------- */
+export const getFarmerClusters = (k = 3) => call(financeApi.get(`/ai/farmer-clusters?k=${k}`));
+export const getNearestFarmers = (farmerId, limit = 5) => call(financeApi.get(`/ai/farmers/${farmerId}/nearest?limit=${limit}`));
+export const getFarmerAnomalies = (farmerId) => call(financeApi.get(`/ai/farmers/${farmerId}/anomalies`));
