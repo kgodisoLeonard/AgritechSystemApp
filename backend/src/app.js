@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { query } from './db.js';
 import { generateRecommendations } from './recommendations.js';
+import { getLoanReadiness } from './forecast.js';
 
 const app = express();
 
@@ -186,6 +187,15 @@ app.get('/api/farmers/:id/recommendations', async (req, res) => {
       [req.params.id]
     );
     res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.get('/api/farmers/:id/loan-readiness', async (req, res) => {
+  try {
+    const result = await getLoanReadiness(req.params.id);
+    res.json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

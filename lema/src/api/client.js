@@ -37,7 +37,7 @@ export const registerFarmer = (body) => call(financeApi.post('/farmers/register'
 export const loginFarmer = (body) => call(financeApi.post('/farmers/login', body));
 
 /* ---------- AI assistant (Spring finance API + Ollama) ---------- */
-export const askAI = (prompt) => call(financeApi.post('/chat', { prompt }, { timeout: 30000 }));
+export const askAI = (prompt, context) => call(financeApi.post('/chat', { prompt, context }, { timeout: 30000 }));
 
 /* ---------- Farmers (Node api) ---------- */
 export const getFarmer = (id) => call(api.get(`/farmers/${id}`));
@@ -57,4 +57,5 @@ export const joinGroupOrder = (id, body) => call(api.post(`/group-orders/${id}/j
 /* ---------- AI recommendations + supplier notifications (Node api) ---------- */
 export const getRecommendations = (farmerId) => call(api.get(`/farmers/${farmerId}/recommendations`));
 export const refreshRecommendations = () => call(api.post('/ai/recommendations/refresh'));
+export const getLoanReadiness = (farmerId) => call(api.get(`/farmers/${farmerId}/loan-readiness`));
 export const getNotifications = () => call(api.get('/notifications'));

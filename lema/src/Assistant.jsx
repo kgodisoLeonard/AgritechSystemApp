@@ -1,9 +1,38 @@
 import { useState } from 'react';
 import { askAI } from './api/client';
 
+// Builds a short, real summary of the farmer's own numbers so the AI's
+// answers are grounded instead of generic. Only the last 3 months matter.
+function buildFarmContext(entries) {
+  if (!entries?.length) return undefined;
+  const byMonth = {};
+  for (const e of entries) {
+    byMonth[e.month] ??= { sales: 0, expenses: 0 };
+    if (e.type === 'sale') byMonth[e.month].sales += e.amount;
+    else byMonth[e.month].expenses += e.amount;
+  }
+  const months = Object.keys(byMonth).sort().slice(-3);
+  if (!months.length) return undefined;
+  const totals = months.reduce(
+    (acc, m) => ({ sales: acc.sales + byMonth[m].sales, expenses: acc.expenses + byMonth[m].expenses }),
+    { sales: 0, expenses: 0 },
+  );
+  const byCategory = {};
+  for (const e of entries) {
+    if (e.type !== 'expense') continue;
+    byCategory[e.category || 'general'] = (byCategory[e.category || 'general'] || 0) + e.amount;
+  }
+  const topCategory = Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0];
+  const parts = [
+    `Over the last ${months.length} month(s): R${totals.sales} in sales, R${totals.expenses} in expenses, profit R${totals.sales - totals.expenses}.`,
+  ];
+  if (topCategory) parts.push(`Biggest expense category: ${topCategory[0]} (R${topCategory[1]}).`);
+  return parts.join(' ');
+}
+
 /* The Spring + Ollama chat service (/api/chat) was fully deployed but never
    surfaced anywhere in the frontend. This page wires it up. */
-export default function Assistant() {
+export default function Assistant({ entries }) {
   const [prompt, setPrompt] = useState('');
   const [chat, setChat] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -17,7 +46,7 @@ export default function Assistant() {
     setPrompt('');
     setBusy(true);
     setError('');
-    const { data, error: err } = await askAI(mine);
+    const { data, error: err } = await askAI(mine, buildFarmContext(entries));
     setBusy(false);
     if (err) {
       setError(err);

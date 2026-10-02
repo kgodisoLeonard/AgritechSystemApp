@@ -3,7 +3,7 @@ import { Routes, Route, Link, NavLink } from 'react-router-dom';
 import {
   getExpenses, addExpense, getIncome, addIncome,
   getSuppliers, getProducts, getGroupOrders, joinGroupOrder,
-  getRecommendations, getNotifications,
+  getRecommendations, getNotifications, getLoanReadiness,
 } from './api/client';
 import { Home, HowItWorks, ForSuppliers } from './pages';
 import Auth from './Auth';
@@ -50,19 +50,47 @@ function Chart({ entries, months }) {
   );
 }
 
-function LoanMeter({ entries, months }) {
+function LoanMeter({ entries, months, farmerId, refreshKey }) {
+  // Fall back to the old instant client-side estimate while the real
+  // backend forecast (trend + volatility, not just a month tally) loads,
+  // so the panel never looks empty on first paint.
   const good = months.filter((m) => {
     const s = entries.filter((e) => e.month === m && e.type === 'sale').reduce((a, e) => a + e.amount, 0);
     const x = entries.filter((e) => e.month === m && e.type === 'expense').reduce((a, e) => a + e.amount, 0);
     return s > x;
   }).length;
-  const score = Math.min(100, good * 14 + Math.min(entries.length, 15) * 2);
-  const label = score >= 80 ? 'Ready to show a lender' : score >= 50 ? 'Getting there' : 'Keep logging';
+  const fallbackScore = Math.min(100, good * 14 + Math.min(entries.length, 15) * 2);
+  const fallbackLabel = fallbackScore >= 80 ? 'Ready to show a lender' : fallbackScore >= 50 ? 'Getting there' : 'Keep logging';
+
+  const [forecast, setForecast] = useState(null);
+  useEffect(() => {
+    if (!farmerId) return;
+    let live = true;
+    getLoanReadiness(farmerId).then(({ data }) => { if (live && data) setForecast(data); });
+    return () => { live = false; };
+  }, [farmerId, refreshKey]);
+
+  const score = forecast ? forecast.score : fallbackScore;
+  const label = forecast ? forecast.label : fallbackLabel;
+  const monthsRecorded = forecast ? forecast.monthsRecorded : months.length;
+  const profitableMonths = forecast ? forecast.profitableMonths : good;
+  const trendText = forecast && forecast.trend === 'up'
+    ? 'trending up'
+    : forecast && forecast.trend === 'down'
+    ? 'trending down'
+    : 'holding steady';
+
   return (
     <div className="panel meter">
       <h3>Loan readiness</h3>
       <div className="ring" style={{ '--p': score }}><b>{score}</b></div>
-      <p><strong>{label}</strong><br />{good} of {months.length} months profitable. Lenders want at least 6 months of records.</p>
+      <p><strong>{label}</strong><br />{profitableMonths} of {monthsRecorded} months profitable. Lenders want at least 6 months of records.</p>
+      {forecast && forecast.monthsRecorded > 0 && (
+        <p className="muted">
+          Profit is {trendText} — next month's forecast is {R(forecast.forecastNextMonth)}
+          {typeof forecast.mlForecastNextMonth === 'number' && ` (ML model: ${R(forecast.mlForecastNextMonth)})`}.
+        </p>
+      )}
     </div>
   );
 }
@@ -106,7 +134,7 @@ function Ledger({ entries, onAdd, busy, error, farmerId, months, recoRefreshKey 
         <Chart entries={entries} months={months} />
         <p className="legend"><i className="dot m" /> Sales <i className="dot s" /> Expenses</p>
       </section>
-      <LoanMeter entries={entries} months={months} />
+      <LoanMeter entries={entries} months={months} farmerId={farmerId} refreshKey={recoRefreshKey} />
       <form className="panel" onSubmit={submit}>
         <h3>Log an entry</h3>
         <div className="seg">
@@ -273,7 +301,7 @@ function AppShell({ farmer, onLogout, entries, groups, suppliers, notifications,
           <Route path="ledger" element={<Ledger entries={entries} onAdd={add} busy={addBusy} error={addError} farmerId={farmer.id} months={months} recoRefreshKey={recoRefreshKey} />} />
           <Route path="groups" element={<Groups groups={groups} joined={joined} onJoin={join} busyId={joinBusyId} error={joinError} />} />
           <Route path="suppliers" element={<Suppliers suppliers={suppliers} notifications={notifications} />} />
-          <Route path="assistant" element={<Assistant />} />
+          <Route path="assistant" element={<Assistant entries={entries} />} />
           <Route index element={<Ledger entries={entries} onAdd={add} busy={addBusy} error={addError} farmerId={farmer.id} months={months} recoRefreshKey={recoRefreshKey} />} />
         </Routes>
       </main>
