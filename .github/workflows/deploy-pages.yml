@@ -3,7 +3,7 @@ name: Deploy frontend to GitHub Pages
 on:
   push:
     branches: [main]
-    paths: ['lema/**', 'scripts/check-ai.mjs', '.github/workflows/deploy-pages.yml']
+    paths: ['lema/**', 'scripts/check-ai.mjs', 'scripts/check-pages-api.mjs', '.github/workflows/deploy-pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -23,12 +23,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Validate HTTPS backends and Qwen response
+      - name: Validate HTTPS backend URLs
         env:
           VITE_API_URL: ${{ vars.LEMA_API_URL }}
           VITE_FINANCE_API_URL: ${{ vars.LEMA_FINANCE_API_URL }}
-          AI_CHAT_URL: ${{ vars.LEMA_FINANCE_API_URL }}/chat
-          AI_CHAT_ORIGIN: https://kgodisoleonard.github.io
         run: |
           node --input-type=module <<'JS'
           for (const name of ['VITE_API_URL', 'VITE_FINANCE_API_URL']) {
@@ -38,7 +36,20 @@ jobs:
             }
           }
           JS
-          node scripts/check-ai.mjs
+
+      - name: Verify core APIs and login CORS
+        env:
+          VITE_API_URL: ${{ vars.LEMA_API_URL }}
+          VITE_FINANCE_API_URL: ${{ vars.LEMA_FINANCE_API_URL }}
+          AI_CHAT_ORIGIN: https://kgodisoleonard.github.io
+        run: node scripts/check-pages-api.mjs
+
+      - name: Check optional Qwen chat
+        continue-on-error: true
+        env:
+          AI_CHAT_URL: ${{ vars.LEMA_FINANCE_API_URL }}/chat
+          AI_CHAT_ORIGIN: https://kgodisoleonard.github.io
+        run: node scripts/check-ai.mjs
       - name: Build
         working-directory: lema
         env:
