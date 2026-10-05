@@ -34,6 +34,7 @@ export default function Assistant({ entries }) {
   const [chat, setChat] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [failedPrompt, setFailedPrompt] = useState('');
   const [clusters, setClusters] = useState(null);
   const [farmerId, setFarmerId] = useState('');
   const [nearest, setNearest] = useState(null);
@@ -41,21 +42,28 @@ export default function Assistant({ entries }) {
   const [analyticsBusy, setAnalyticsBusy] = useState('');
   const [analyticsError, setAnalyticsError] = useState('');
 
-  const ask = async (ev) => {
-    ev.preventDefault();
-    const mine = prompt.trim();
+  const sendPrompt = async (mine, retry = false) => {
     if (!mine || busy) return;
-    setChat((c) => [...c, { who: 'me', text: mine }]);
-    setPrompt('');
+    if (!retry) {
+      setChat((c) => [...c, { who: 'me', text: mine }]);
+      setPrompt('');
+    }
     setBusy(true);
     setError('');
+    setFailedPrompt('');
     const { data, error: err } = await askAI(mine, buildFarmContext(entries));
     setBusy(false);
     if (err) {
       setError(err);
+      setFailedPrompt(mine);
       return;
     }
-    setChat((c) => [...c, { who: 'ai', text: data.response }]);
+    setChat((c) => [...c, { who: 'ai', text: data.response, model: data.model }]);
+  };
+
+  const ask = (ev) => {
+    ev.preventDefault();
+    return sendPrompt(prompt.trim());
   };
 
   const loadClusters = async () => {
@@ -97,19 +105,21 @@ export default function Assistant({ entries }) {
       </div>
 
       <div className="panel chat-panel">
-        <div className="chat-log">
+        <div className="chat-log" role="log" aria-live="polite" aria-busy={busy}>
           {!chat.length && <p className="muted">Try: "How can I cut my fertiliser costs this season?"</p>}
           {chat.map((m, i) => (
             <p key={i} className={'bubble ' + m.who}>
               {m.text}
+              {m.model && <small className="muted">{m.model}</small>}
             </p>
           ))}
           {busy && <p className="bubble ai">Thinking...</p>}
         </div>
         {error && <p className="error-text">Could not reach the AI service: {error}</p>}
+        {failedPrompt && <button className="btn" type="button" onClick={() => sendPrompt(failedPrompt, true)} disabled={busy}>Retry</button>}
         <form onSubmit={ask} className="chat-form">
           <input placeholder="Ask a question..." value={prompt} onChange={(e) => setPrompt(e.target.value)} />
-          <button className="btn" disabled={busy}>
+          <button className="btn" disabled={busy || !prompt.trim()}>
             Send
           </button>
         </form>

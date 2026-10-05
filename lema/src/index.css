@@ -96,6 +96,8 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:24px}
 .bubble{max-width:80%;padding:10px 14px;border-radius:14px;margin:0}
 .bubble.me{align-self:flex-end;background:var(--maize);color:var(--forest)}
 .bubble.ai{align-self:flex-start;background:var(--sky)}
+.bubble{white-space:pre-wrap;overflow-wrap:anywhere}
+.bubble small{display:block;margin-top:6px}
 .chat-form{display:flex;gap:10px}
 .chat-form input{flex:1;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
 .chat-form .btn{width:auto;padding:12px 22px}

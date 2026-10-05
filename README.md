@@ -1,5 +1,54 @@
 # Agri Tech Database
 
+## Qwen Assistant And GitHub Pages
+
+The assistant sends `POST /chat` with `{ "prompt": "...", "context": "..." }`
+to the finance API, which calls Ollama's `qwen2.5:0.5b` model. Responses
+contain `model` and `response`; the frontend displays the real model answer.
+
+For local development, run `npm run dev` in `lema`. Vite forwards `/fin/api`
+to `http://localhost:8081/api` and `/node/api` to `http://localhost:3000/api`.
+Docker serves those same paths through nginx.
+
+GitHub Pages hosts static files only. It cannot run Ollama or the Spring API.
+Its HTTPS page requires a public HTTPS backend; `http://localhost:8081`
+and HTTP server IP addresses do not provide that connection.
+
+Expose the running Docker frontend through an HTTPS domain or Cloudflare
+Tunnel, then set these GitHub repository **Actions variables** before deploying Pages:
+
+- `LEMA_API_URL=https://YOUR-BACKEND-HOST/node/api`
+- `LEMA_FINANCE_API_URL=https://YOUR-BACKEND-HOST/fin/api`
+
+If exposing the finance API directly instead, use `https://YOUR-FINANCE-HOST/api`
+for `LEMA_FINANCE_API_URL`. Keep the backend and Ollama running while the
+frontend is in use. A temporary tunnel stops working when its process exits.
+Do not expose Ollama port 11434 to browsers.
+
+Verify a real Qwen answer through the frontend's proxy:
+
+```powershell
+$env:AI_CHAT_URL = 'http://localhost:5173/fin/api/chat'
+node scripts/check-ai.mjs
+```
+
+For Pages, use the public HTTPS chat URL and set
+`AI_CHAT_ORIGIN=https://kgodisoleonard.github.io` to check CORS as well.
+The Pages workflow checks a real, nonempty Qwen reply before publishing.
+
+When the APIs run on this Windows computer, `node scripts/pages-api-proxy.mjs`
+provides the Pages CORS connection on `127.0.0.1:8787`. It exposes only
+`/fin/api/chat` by default. Set `ENABLE_DATA_API=true` explicitly to also
+forward the existing farmer, finance, and Node API routes. The proxy checks
+the Pages origin and limits request bodies to 32 KB.
+
+Point Cloudflare Tunnel at `http://127.0.0.1:8787` and use its HTTPS hostname
+in the repository variables above. Both the proxy and tunnel must stay
+running, along with the local APIs and Ollama. A quick tunnel's URL changes
+when restarted, so update both variables and redeploy Pages after restarting
+it. For uninterrupted hosting, use a named tunnel or a server with a stable
+HTTPS domain; a sleeping or powered-off computer cannot answer requests.
+
 PostgreSQL schema for the Agri Tech platform: farmers, suppliers, supplier
 products, income/expense tracking, and group buying orders.
 

@@ -1,6 +1,7 @@
 package com.example.agritech_finance_api.ai;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -13,8 +14,25 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.server.ResponseStatusException;
 
 class ChatServiceTest {
+    @Test
+    void rejectsBlankModelAnswers() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        ChatService service = new ChatService(builder, "http://ollama.test", "qwen2.5:0.5b");
+        server.expect(requestTo("http://ollama.test/api/generate"))
+                .andRespond(withSuccess("""
+                        {"model":"qwen2.5:0.5b","response":"   "}
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> service.chat("Hello", null))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Ollama returned an empty response");
+        server.verify();
+    }
+
     @Test
     void sendsThePromptToOllama() {
         RestClient.Builder builder = RestClient.builder();

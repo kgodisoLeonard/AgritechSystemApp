@@ -3,7 +3,7 @@ name: Deploy frontend to GitHub Pages
 on:
   push:
     branches: [main]
-    paths: ['lema/**', '.github/workflows/deploy-pages.yml']
+    paths: ['lema/**', 'scripts/check-ai.mjs', '.github/workflows/deploy-pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -23,12 +23,28 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Validate HTTPS backends and Qwen response
+        env:
+          VITE_API_URL: ${{ vars.LEMA_API_URL }}
+          VITE_FINANCE_API_URL: ${{ vars.LEMA_FINANCE_API_URL }}
+          AI_CHAT_URL: ${{ vars.LEMA_FINANCE_API_URL }}/chat
+          AI_CHAT_ORIGIN: https://kgodisoleonard.github.io
+        run: |
+          node --input-type=module <<'JS'
+          for (const name of ['VITE_API_URL', 'VITE_FINANCE_API_URL']) {
+            const url = new URL(process.env[name]);
+            if (url.protocol !== 'https:' || ['localhost', '127.0.0.1', '::1', '[::1]'].includes(url.hostname)) {
+              throw new Error(`${name} must be a public HTTPS API URL. Configure the LEMA_API_URL and LEMA_FINANCE_API_URL repository variables.`);
+            }
+          }
+          JS
+          node scripts/check-ai.mjs
       - name: Build
         working-directory: lema
         env:
           VITE_BASE: /AgritechSystemApp/
-          VITE_API_URL: ${{ vars.LEMA_API_URL || 'http://92.4.134.156:3000/api' }}
-          VITE_FINANCE_API_URL: ${{ vars.LEMA_FINANCE_API_URL || 'http://92.4.134.156:8081/api' }}
+          VITE_API_URL: ${{ vars.LEMA_API_URL }}
+          VITE_FINANCE_API_URL: ${{ vars.LEMA_FINANCE_API_URL }}
         run: |
           npm install
           npm run build

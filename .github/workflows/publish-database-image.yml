@@ -89,8 +89,8 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           build-args: |
-            VITE_API_URL=http://92.4.134.156:3000/api
-            VITE_FINANCE_API_URL=http://92.4.134.156:8081/api
+            VITE_API_URL=/node/api
+            VITE_FINANCE_API_URL=/fin/api
           tags: |
             ${{ env.LEMA_IMAGE }}:latest
             ${{ env.LEMA_IMAGE }}:${{ github.sha }}
@@ -331,6 +331,8 @@ jobs:
               sleep 2
             done
             echo --- database container logs ---
+            echo --- verify Qwen through frontend proxy ---
+            docker compose exec -T -e AI_CHAT_URL=http://lema-frontend/fin/api/chat api node --input-type=module < scripts/check-ai.mjs || { echo AI_CHAT_FAILED; exit 1; }
             docker logs --tail 60 agritech_db 2>&1 || echo NO_DB_LOGS
             echo --- database compose logs ---
             docker compose logs --tail 40 db 2>&1 || echo NO_COMPOSE_LOGS

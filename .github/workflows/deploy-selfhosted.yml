@@ -55,3 +55,6 @@ jobs:
           done
           echo "::error::Frontend did not respond on port 80."
           exit 1
+
+      - name: Verify Qwen through the frontend proxy
+        run: docker compose exec -T -e AI_CHAT_URL=http://lema-frontend/fin/api/chat api node --input-type=module < scripts/check-ai.mjs

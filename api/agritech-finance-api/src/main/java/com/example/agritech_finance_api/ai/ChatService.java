@@ -52,7 +52,7 @@ public class ChatService {
                     .body(new OllamaGenerateRequest(model, prompt, false))
                     .retrieve()
                     .body(OllamaGenerateResponse.class);
-            if (result == null || result.response() == null) {
+            if (result == null || result.response() == null || result.response().isBlank()) {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Ollama returned an empty response");
             }
             return new ChatResponse(result.model(), result.response());

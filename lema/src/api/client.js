@@ -6,16 +6,16 @@ import axios from 'axios';
 //                                                        recommendations, notifications.
 //  - `financeApi` (Spring Boot, VITE_FINANCE_API_URL) -> farmer register/login and the
 //                                                        Ollama-backed AI chat assistant.
-const env = import.meta.env;
+const env = import.meta.env || {};
 
 export const api = axios.create({
-  baseURL: env.VITE_API_URL || 'http://localhost:3000/api',
+  baseURL: env.VITE_API_URL || '/node/api',
   headers: { 'Content-Type': 'application/json' },
   timeout: 8000,
 });
 
 export const financeApi = axios.create({
-  baseURL: env.VITE_FINANCE_API_URL || 'http://localhost:8081/api',
+  baseURL: env.VITE_FINANCE_API_URL || '/fin/api',
   headers: { 'Content-Type': 'application/json' },
   timeout: 8000,
 });
@@ -27,7 +27,8 @@ async function call(promise) {
     const { data } = await promise;
     return { data, error: null };
   } catch (err) {
-    const message = err.response?.data?.message || err.message || 'Request failed';
+    const message = err.response?.data?.message || err.response?.data?.detail
+      || err.message || 'Request failed';
     return { data: null, error: message };
   }
 }
@@ -37,7 +38,13 @@ export const registerFarmer = (body) => call(financeApi.post('/farmers/register'
 export const loginFarmer = (body) => call(financeApi.post('/farmers/login', body));
 
 /* ---------- AI assistant (Spring finance API + Ollama) ---------- */
-export const askAI = (prompt, context) => call(financeApi.post('/chat', { prompt, context }, { timeout: 30000 }));
+export async function askAI(prompt, context) {
+  const result = await call(financeApi.post('/chat', { prompt, context }, { timeout: 250000 }));
+  if (!result.error && (typeof result.data?.response !== 'string' || !result.data.response.trim())) {
+    return { data: null, error: 'The AI service returned an empty reply. Please try again.' };
+  }
+  return result;
+}
 
 /* ---------- Farmers (Node api) ---------- */
 export const getFarmer = (id) => call(api.get(`/farmers/${id}`));
