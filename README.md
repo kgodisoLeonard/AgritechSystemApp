@@ -85,7 +85,11 @@ docker compose up -d --build
 
 Then open <http://localhost> and register an account. The first build is slow
 (ML service + AI model download). Everything, including Ask AI, runs locally.
-To share it temporarily, run `cloudflared tunnel --url http://localhost:80`.
+To share it temporarily, first install cloudflared (`winget install Cloudflare.cloudflared`,
+then reopen the terminal), make sure `http://localhost` already opens the app, then run
+`cloudflared tunnel --url http://localhost:80`. Use the `https://….trycloudflare.com`
+link it prints. If the tunnel errors or the page is blank, `docker compose ps` should
+show every service running (the tunnel only forwards what is already on port 80).
 
 ```bash
 docker compose up -d
