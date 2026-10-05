@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS farmers (
     id             VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
     name           VARCHAR(150) NOT NULL,
     location       VARCHAR(150),
+    province       VARCHAR(100),
+    country        VARCHAR(100),
     contact        VARCHAR(100) UNIQUE,
     password_hash  VARCHAR(255),
     created_at     TIMESTAMP NOT NULL DEFAULT NOW()
