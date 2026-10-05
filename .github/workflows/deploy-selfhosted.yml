@@ -1,0 +1,57 @@
+name: Deploy to self-hosted runner
+
+# Manual deploy onto any Linux machine (with Docker) that has a GitHub
+# self-hosted runner registered with the label "agritech". Images are pulled
+# from GHCR (built by "Publish container images"), so nothing is built here.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, agritech]
+    env:
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          if [ -z "$POSTGRES_PASSWORD" ]; then
+            echo "::error::POSTGRES_PASSWORD repository secret is not set."
+            exit 1
+          fi
+          printf 'POSTGRES_PASSWORD=%s\nNODE_ENV=production\n' "$POSTGRES_PASSWORD" > .env
+          chmod 600 .env
+
+      - name: Pull and start containers
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker compose pull
+          docker compose up -d --no-build --remove-orphans
+          docker compose ps
+
+      - name: Wait for database and migrate
+        run: |
+          for i in $(seq 1 30); do
+            docker exec agritech_db pg_isready -U agritech_user -d agritech && break
+            sleep 3
+          done
+          docker exec agritech_db psql -U agritech_user -d agritech -c 'ALTER TABLE farmers ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);'
+          docker exec agritech_db psql -U agritech_user -d agritech -c 'ALTER TABLE farmers ADD COLUMN IF NOT EXISTS country VARCHAR(100), ADD COLUMN IF NOT EXISTS province VARCHAR(100);'
+
+      - name: Verify frontend
+        run: |
+          for i in $(seq 1 20); do
+            if curl --silent --fail --max-time 3 http://127.0.0.1/ -o /dev/null; then
+              echo "Frontend is up. Open http://<this-machine-public-ip>/ (ports 80/3000/8081 must be open)."
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "::error::Frontend did not respond on port 80."
+          exit 1
