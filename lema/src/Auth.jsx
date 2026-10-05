@@ -4,12 +4,15 @@ import { registerFarmer, loginFarmer } from './api/client';
 
 const AUTH_IMG = 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=1200&q=80';
 
+const COUNTRIES = ['South Africa', 'Botswana', 'Eswatini', 'Lesotho', 'Malawi', 'Mozambique', 'Namibia', 'Zambia', 'Zimbabwe', 'Other'];
+const SA_PROVINCES = ['Eastern Cape', 'Free State', 'Gauteng', 'KwaZulu-Natal', 'Limpopo', 'Mpumalanga', 'Northern Cape', 'North West', 'Western Cape'];
+
 /* Gate in front of the authenticated /app/* routes. The backend already has
    full register/login support (Spring + bcrypt) that the frontend never used —
    every farmer was hard-coded to id 1. This makes real accounts work end to end. */
 export default function Auth({ onAuthed }) {
   const [mode, setMode] = useState('login');
-  const [form, setForm] = useState({ name: '', location: '', contact: '', password: '' });
+  const [form, setForm] = useState({ name: '', country: 'South Africa', province: '', location: '', contact: '', password: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -51,6 +54,30 @@ export default function Auth({ onAuthed }) {
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
+              <select
+                required
+                value={form.country}
+                onChange={(e) => setForm({ ...form, country: e.target.value, province: '' })}
+              >
+                {COUNTRIES.map((c) => <option key={c}>{c}</option>)}
+              </select>
+              {form.country === 'South Africa' ? (
+                <select
+                  required
+                  value={form.province}
+                  onChange={(e) => setForm({ ...form, province: e.target.value })}
+                >
+                  <option value="">Province</option>
+                  {SA_PROVINCES.map((p) => <option key={p}>{p}</option>)}
+                </select>
+              ) : (
+                <input
+                  required
+                  placeholder="Province / State"
+                  value={form.province}
+                  onChange={(e) => setForm({ ...form, province: e.target.value })}
+                />
+              )}
               <input
                 required
                 placeholder="Town"

@@ -2,7 +2,7 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 Figtree,system-ui,sans-serif}
 h1,h2,h3,.logo{font-family:'Bricolage Grotesque',sans-serif;letter-spacing:-.02em;margin:0}
-button,input{font:inherit}
+button,input,select{font:inherit}
 :focus-visible{outline:3px solid var(--maize);outline-offset:2px}
 .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px clamp(16px,4vw,48px);background:var(--forest);color:#fff;position:sticky;top:0;z-index:5}
 .logo{font-size:26px;font-weight:800;display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none}
@@ -32,7 +32,7 @@ main{max-width:1120px;margin:0 auto;padding:32px clamp(16px,4vw,32px) 64px}
 .ring{width:96px;height:96px;border-radius:50%;background:conic-gradient(var(--good) calc(var(--p)*1%),var(--sky) 0);display:grid;place-items:center;position:relative}
 .ring::before{content:'';position:absolute;inset:10px;background:#fff;border-radius:50%}
 .ring b{position:relative;font:800 26px 'Bricolage Grotesque'}
-form input{display:block;width:100%;padding:12px 14px;margin-bottom:10px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+form input,form select{display:block;width:100%;padding:12px 14px;margin-bottom:10px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
 textarea{display:block;width:100%;padding:12px 14px;margin-bottom:10px;border:1px solid var(--line);border-radius:12px;background:var(--paper);resize:vertical;color:var(--ink)}
 .seg{display:flex;gap:6px;margin-bottom:12px}
 .seg button{flex:1;padding:10px;border:1px solid var(--line);background:#fff;border-radius:12px;cursor:pointer;font-weight:600}

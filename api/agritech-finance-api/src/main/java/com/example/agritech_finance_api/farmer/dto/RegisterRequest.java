@@ -3,6 +3,8 @@ package com.example.agritech_finance_api.farmer.dto;
 public class RegisterRequest {
     private String name;
     private String location;
+    private String province;
+    private String country;
     private String contact;
     private String password;
 
@@ -13,6 +15,12 @@ public class RegisterRequest {
 
     public String getLocation() { return location; }
     public void setLocation(String location) { this.location = location; }
+
+    public String getProvince() { return province; }
+    public void setProvince(String province) { this.province = province; }
+
+    public String getCountry() { return country; }
+    public void setCountry(String country) { this.country = country; }
 
     public String getContact() { return contact; }
     public void setContact(String contact) { this.contact = contact; }
