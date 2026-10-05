@@ -386,12 +386,7 @@ export default function App() {
       return;
     }
     setEntries((p) => [...p, { ...data, type: e.type, month: monthOf(data.date) }]);
-    if (e.type === 'expense') {
-      // The backend reclusters farmers by spending pattern synchronously
-      // when an expense is saved, so by the time this resolves fresh
-      // recommendations may already exist — bump the key to refetch them.
-      setRecoRefreshKey((k) => k + 1);
-    }
+    if (e.type === 'expense') setRecoRefreshKey((k) => k + 1);
     setToast(e.type === 'expense' ? 'Saved. Checking for farmers buying the same input near you.' : 'Sale saved.');
   };
 

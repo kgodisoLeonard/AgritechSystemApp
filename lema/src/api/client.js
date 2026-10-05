@@ -59,3 +59,8 @@ export const getRecommendations = (farmerId) => call(api.get(`/farmers/${farmerI
 export const refreshRecommendations = () => call(api.post('/ai/recommendations/refresh'));
 export const getLoanReadiness = (farmerId) => call(api.get(`/farmers/${farmerId}/loan-readiness`));
 export const getNotifications = () => call(api.get('/notifications'));
+
+/* ---------- Machine-learning analytics (Spring finance API) ---------- */
+export const getFarmerClusters = (k = 3) => call(financeApi.get(`/ai/farmer-clusters?k=${k}`));
+export const getNearestFarmers = (farmerId, limit = 5) => call(financeApi.get(`/ai/farmers/${farmerId}/nearest?limit=${limit}`));
+export const getFarmerAnomalies = (farmerId) => call(financeApi.get(`/ai/farmers/${farmerId}/anomalies`));

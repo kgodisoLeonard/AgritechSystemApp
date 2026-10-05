@@ -103,6 +103,18 @@ curl -X POST http://localhost:8081/api/chat \
 
 Set `AI_MODEL` in `.env` to select a different Ollama model.
 
+The Spring Boot API also exposes non-training AI analytics endpoints:
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/api/chat` | Send a prompt to the configured Ollama model |
+| `GET` | `/api/ai/farmer-clusters?k=3` | Cluster farmers with K-means from current database records |
+| `GET` | `/api/ai/farmers/{farmerId}/nearest?limit=5` | Find farmers with the closest behavior, product, and location signals |
+| `GET` | `/api/ai/farmers/{farmerId}/anomalies` | Detect unusual expenses, order spend, order activity, and weak data history |
+
+These analytics compute from live records and deliberately do not include a
+training pipeline yet.
+
 The schema and seed data are loaded on the first startup of a new database
 volume.
 
