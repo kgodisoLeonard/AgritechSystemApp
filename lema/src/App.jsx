@@ -3,7 +3,7 @@ import { Routes, Route, Link, NavLink } from 'react-router-dom';
 import {
   getExpenses, addExpense, getIncome, addIncome,
   getSuppliers, getProducts, getGroupOrders, joinGroupOrder,
-  getRecommendations, getNotifications,
+  getRecommendations, getNotifications, getLoanReadiness,
 } from './api/client';
 import { Home, HowItWorks, ForSuppliers } from './pages';
 import Auth from './Auth';
@@ -50,36 +50,64 @@ function Chart({ entries, months }) {
   );
 }
 
-function LoanMeter({ entries, months }) {
+function LoanMeter({ entries, months, farmerId, refreshKey }) {
+  // Fall back to the old instant client-side estimate while the real
+  // backend forecast (trend + volatility, not just a month tally) loads,
+  // so the panel never looks empty on first paint.
   const good = months.filter((m) => {
     const s = entries.filter((e) => e.month === m && e.type === 'sale').reduce((a, e) => a + e.amount, 0);
     const x = entries.filter((e) => e.month === m && e.type === 'expense').reduce((a, e) => a + e.amount, 0);
     return s > x;
   }).length;
-  const score = Math.min(100, good * 14 + Math.min(entries.length, 15) * 2);
-  const label = score >= 80 ? 'Ready to show a lender' : score >= 50 ? 'Getting there' : 'Keep logging';
+  const fallbackScore = Math.min(100, good * 14 + Math.min(entries.length, 15) * 2);
+  const fallbackLabel = fallbackScore >= 80 ? 'Ready to show a lender' : fallbackScore >= 50 ? 'Getting there' : 'Keep logging';
+
+  const [forecast, setForecast] = useState(null);
+  useEffect(() => {
+    if (!farmerId) return;
+    let live = true;
+    getLoanReadiness(farmerId).then(({ data }) => { if (live && data) setForecast(data); });
+    return () => { live = false; };
+  }, [farmerId, refreshKey]);
+
+  const score = forecast ? forecast.score : fallbackScore;
+  const label = forecast ? forecast.label : fallbackLabel;
+  const monthsRecorded = forecast ? forecast.monthsRecorded : months.length;
+  const profitableMonths = forecast ? forecast.profitableMonths : good;
+  const trendText = forecast && forecast.trend === 'up'
+    ? 'trending up'
+    : forecast && forecast.trend === 'down'
+    ? 'trending down'
+    : 'holding steady';
+
   return (
     <div className="panel meter">
       <h3>Loan readiness</h3>
       <div className="ring" style={{ '--p': score }}><b>{score}</b></div>
-      <p><strong>{label}</strong><br />{good} of {months.length} months profitable. Lenders want at least 6 months of records.</p>
+      <p><strong>{label}</strong><br />{profitableMonths} of {monthsRecorded} months profitable. Lenders want at least 6 months of records.</p>
+      {forecast && forecast.monthsRecorded > 0 && (
+        <p className="muted">
+          Profit is {trendText} â€” next month's forecast is {R(forecast.forecastNextMonth)}
+          {typeof forecast.mlForecastNextMonth === 'number' && ` (ML model: ${R(forecast.mlForecastNextMonth)})`}.
+        </p>
+      )}
     </div>
   );
 }
 
-function Insights({ farmerId }) {
+function Insights({ farmerId, refreshKey }) {
   const [items, setItems] = useState(null);
   useEffect(() => {
     let live = true;
     getRecommendations(farmerId).then(({ data }) => { if (live) setItems(Array.isArray(data) ? data : []); });
     return () => { live = false; };
-  }, [farmerId]);
+  }, [farmerId, refreshKey]);
   return (
     <div className="panel insights">
       <h3>AI insights</h3>
-      {items === null && <p className="muted">Loading…</p>}
+      {items === null && <p className="muted">Loadingâ€¦</p>}
       {items && items.length === 0 && (
-        <p className="muted">Keep logging — Lema will start spotting patterns after a few entries.</p>
+        <p className="muted">Keep logging â€” Lema will start spotting patterns after a few entries.</p>
       )}
       {items && items.map((r) => (
         <p key={r.id} className="insight-row">{r.reason}</p>
@@ -88,7 +116,7 @@ function Insights({ farmerId }) {
   );
 }
 
-function Ledger({ entries, onAdd, busy, error, farmerId, months }) {
+function Ledger({ entries, onAdd, busy, error, farmerId, months, recoRefreshKey }) {
   const [f, setF] = useState({ type: 'expense', item: '', category: 'general', amount: '', location: '' });
   const sales = entries.filter((e) => e.type === 'sale').reduce((a, e) => a + e.amount, 0);
   const costs = entries.filter((e) => e.type === 'expense').reduce((a, e) => a + e.amount, 0);
@@ -106,7 +134,7 @@ function Ledger({ entries, onAdd, busy, error, farmerId, months }) {
         <Chart entries={entries} months={months} />
         <p className="legend"><i className="dot m" /> Sales <i className="dot s" /> Expenses</p>
       </section>
-      <LoanMeter entries={entries} months={months} />
+      <LoanMeter entries={entries} months={months} farmerId={farmerId} refreshKey={recoRefreshKey} />
       <form className="panel" onSubmit={submit}>
         <h3>Log an entry</h3>
         <div className="seg">
@@ -122,16 +150,16 @@ function Ledger({ entries, onAdd, busy, error, farmerId, months }) {
         )}
         <input required type="number" min="1" placeholder="Amount in Rand" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} />
         {error && <p className="error-text">{error}</p>}
-        <button className="btn" disabled={busy}>{busy ? 'Saving…' : 'Save entry'}</button>
+        <button className="btn" disabled={busy}>{busy ? 'Savingâ€¦' : 'Save entry'}</button>
       </form>
-      <Insights farmerId={farmerId} />
+      <Insights farmerId={farmerId} refreshKey={recoRefreshKey} />
       <section className="panel wide">
         <h3>Recent entries</h3>
         {!entries.length && <p className="muted">No entries yet. Log your first sale or expense above.</p>}
         <ul className="list">
           {[...entries].reverse().slice(0, 8).map((e) => (
             <li key={e.id}>
-              <span>{e.item}<small>{e.month}{e.category ? ` · ${e.category}` : ''}</small></span>
+              <span>{e.item}<small>{e.month}{e.category ? ` Â· ${e.category}` : ''}</small></span>
               <b className={e.type === 'sale' ? 'pos' : 'neg'}>{e.type === 'sale' ? '+' : '-'}{R(e.amount)}</b>
             </li>
           ))}
@@ -178,11 +206,11 @@ function Groups({ groups, joined, onJoin, busyId, error }) {
               <Silo n={n} max={target} />
               <div>
                 <h3>{g.product_name}</h3>
-                <p className="muted">{g.supplier_name} · {g.supplier_location}</p>
+                <p className="muted">{g.supplier_name} Â· {g.supplier_location}</p>
                 {unit != null && (
-                  <p className="price"><s>{R(unit)}</s> <b>{R(discounted)}</b> each{off ? ` · ${off}% off` : ''}</p>
+                  <p className="price"><s>{R(unit)}</s> <b>{R(discounted)}</b> each{off ? ` Â· ${off}% off` : ''}</p>
                 )}
-                <p className="muted">{n} of {target} units filled{left ? ` · ${left} to go` : ' · full'}{g.status !== 'open' ? ` · ${g.status}` : ''}</p>
+                <p className="muted">{n} of {target} units filled{left ? ` Â· ${left} to go` : ' Â· full'}{g.status !== 'open' ? ` Â· ${g.status}` : ''}</p>
                 {g.status === 'open' && !already && (
                   <div className="join-row">
                     <input
@@ -198,7 +226,7 @@ function Groups({ groups, joined, onJoin, busyId, error }) {
                       disabled={busyId === g.id || unit == null}
                       onClick={() => onJoin(g.id, q, round2(discounted * q))}
                     >
-                      {busyId === g.id ? 'Joining…' : 'Join this pool'}
+                      {busyId === g.id ? 'Joiningâ€¦' : 'Join this pool'}
                     </button>
                   </div>
                 )}
@@ -252,7 +280,7 @@ function Suppliers({ suppliers, notifications }) {
 }
 
 /* ---------- Shell ---------- */
-function AppShell({ farmer, onLogout, entries, groups, suppliers, notifications, joined, add, join, addBusy, addError, joinBusyId, joinError, months }) {
+function AppShell({ farmer, onLogout, entries, groups, suppliers, notifications, joined, add, join, addBusy, addError, joinBusyId, joinError, months, recoRefreshKey }) {
   const tabs = useMemo(() => [
     ['ledger', 'My farm'],
     ['groups', 'Group buying'],
@@ -270,14 +298,14 @@ function AppShell({ farmer, onLogout, entries, groups, suppliers, notifications,
       </header>
       <main>
         <Routes>
-          <Route path="ledger" element={<Ledger entries={entries} onAdd={add} busy={addBusy} error={addError} farmerId={farmer.id} months={months} />} />
+          <Route path="ledger" element={<Ledger entries={entries} onAdd={add} busy={addBusy} error={addError} farmerId={farmer.id} months={months} recoRefreshKey={recoRefreshKey} />} />
           <Route path="groups" element={<Groups groups={groups} joined={joined} onJoin={join} busyId={joinBusyId} error={joinError} />} />
           <Route path="suppliers" element={<Suppliers suppliers={suppliers} notifications={notifications} />} />
-          <Route path="assistant" element={<Assistant />} />
-          <Route index element={<Ledger entries={entries} onAdd={add} busy={addBusy} error={addError} farmerId={farmer.id} months={months} />} />
+          <Route path="assistant" element={<Assistant entries={entries} />} />
+          <Route index element={<Ledger entries={entries} onAdd={add} busy={addBusy} error={addError} farmerId={farmer.id} months={months} recoRefreshKey={recoRefreshKey} />} />
         </Routes>
       </main>
-      <footer>Lema · Records backed up · Payment and delivery happen between you and the supplier</footer>
+      <footer>Lema Â· Records backed up Â· Payment and delivery happen between you and the supplier</footer>
     </>
   );
 }
@@ -294,6 +322,7 @@ export default function App() {
   const [addError, setAddError] = useState('');
   const [joinBusyId, setJoinBusyId] = useState(null);
   const [joinError, setJoinError] = useState('');
+  const [recoRefreshKey, setRecoRefreshKey] = useState(0);
   const months = useMemo(() => recentMonths(5), []);
 
   const onAuthed = (data) => {
@@ -357,6 +386,7 @@ export default function App() {
       return;
     }
     setEntries((p) => [...p, { ...data, type: e.type, month: monthOf(data.date) }]);
+    if (e.type === 'expense') setRecoRefreshKey((k) => k + 1);
     setToast(e.type === 'expense' ? 'Saved. Checking for farmers buying the same input near you.' : 'Sale saved.');
   };
 
@@ -402,6 +432,7 @@ export default function App() {
                 joinBusyId={joinBusyId}
                 joinError={joinError}
                 months={months}
+                recoRefreshKey={recoRefreshKey}
               />
             ) : (
               <Auth onAuthed={onAuthed} />

@@ -111,6 +111,23 @@ services:
         condition: service_healthy
     restart: "no"
 
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    image: ghcr.io/kgodisoleonard/agritech-ml-service:latest
+    container_name: agritech_ml_service
+    restart: unless-stopped
+
+    ports:
+      - "8000:8000"
+
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   lema-frontend:
     build:
       context: ./lema

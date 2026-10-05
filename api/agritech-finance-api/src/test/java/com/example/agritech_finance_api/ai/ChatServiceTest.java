@@ -30,7 +30,7 @@ class ChatServiceTest {
                         {"model":"qwen2.5:0.5b","response":"Crop rotation alternates crops."}
                         """, MediaType.APPLICATION_JSON));
 
-        ChatResponse response = service.chat("Explain crop rotation");
+        ChatResponse response = service.chat("Explain crop rotation", null);
 
         assertThat(response.response()).isEqualTo("Crop rotation alternates crops.");
         server.verify();
@@ -59,7 +59,7 @@ class ChatServiceTest {
                         {"model":"qwen2.5:0.5b","response":"The model is ready now."}
                         """, MediaType.APPLICATION_JSON));
 
-        ChatResponse response = service.chat("Explain crop rotation");
+        ChatResponse response = service.chat("Explain crop rotation", null);
 
         assertThat(response.response()).isEqualTo("The model is ready now.");
         server.verify();

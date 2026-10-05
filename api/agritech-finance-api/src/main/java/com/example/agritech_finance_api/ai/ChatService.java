@@ -19,16 +19,17 @@ public class ChatService {
         this.model = model;
     }
 
-    public ChatResponse chat(String prompt) {
+    public ChatResponse chat(String prompt, String context) {
+        String finalPrompt = buildPrompt(prompt, context);
         RestClientException lastException = null;
         for (int attempt = 1; attempt <= 3; attempt++) {
             try {
-                return generate(prompt);
+                return generate(finalPrompt);
             } catch (RestClientResponseException exception) {
                 if (isMissingModel(exception)) {
                     try {
                         pullModel();
-                        return generate(prompt);
+                        return generate(finalPrompt);
                     } catch (RestClientException pullException) {
                         lastException = pullException;
                         pauseBeforeRetry(attempt);
@@ -58,6 +59,16 @@ public class ChatService {
         } catch (ResponseStatusException exception) {
             throw exception;
         }
+    }
+
+    // Grounds the answer in the farmer's own numbers when the frontend sends them.
+    private String buildPrompt(String prompt, String context) {
+        String intro = "You are Lema, a friendly assistant for small-scale South African farmers. ";
+        if (context == null || context.isBlank()) {
+            return prompt;
+        }
+        return intro + "Use the farmer's own numbers below to tailor concrete, practical advice. "
+                + "Answer concisely.\n\nFarmer's numbers: " + context + "\n\nQuestion: " + prompt;
     }
 
     private void pullModel() {
