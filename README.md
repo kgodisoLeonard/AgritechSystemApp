@@ -74,6 +74,19 @@ git push -u origin main
 
 ## 2. Run locally with Docker (recommended — no local Postgres install needed)
 
+Quick start on any PC with Docker Desktop and Git:
+
+```bash
+git clone https://github.com/kgodisoLeonard/AgritechSystemApp.git
+cd AgritechSystemApp
+cp .env.example .env        # Windows PowerShell: Copy-Item .env.example .env
+docker compose up -d --build
+```
+
+Then open <http://localhost> and register an account. The first build is slow
+(ML service + AI model download). Everything, including Ask AI, runs locally.
+To share it temporarily, run `cloudflared tunnel --url http://localhost:80`.
+
 ```bash
 docker compose up -d
 ```
