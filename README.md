@@ -240,6 +240,16 @@ group-order joins and monthly profit boundaries, then rolls everything back.
 container and applies all three files in order, so a broken migration or
 test never merges silently.
 
+## 7. Deploy to a friend's server (self-hosted runner)
+
+If the Oracle server is unreachable, any Linux machine with Docker and open ports 80/3000/8081 can host the app:
+
+1. Repo owner: Settings -> Actions -> Runners -> New self-hosted runner (Linux). Copy the commands.
+2. Server owner: install Docker, create a new folder, run those commands, adding `--labels agritech --name agritech-<yourname>` to `./config.sh`, then `./run.sh`.
+3. Make sure the `POSTGRES_PASSWORD` repository secret is set.
+4. Actions -> "Deploy to self-hosted runner" -> Run workflow.
+5. Open `http://<server-public-ip>/`.
+
 ## 6. Automatic deployment to your VPS
 
 `.github/workflows/publish-database-image.yml` publishes the database, Node
