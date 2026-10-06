@@ -49,6 +49,28 @@ when restarted, so update both variables and redeploy Pages after restarting
 it. For uninterrupted hosting, use a named tunnel or a server with a stable
 HTTPS domain; a sleeping or powered-off computer cannot answer requests.
 
+The Windows recovery monitor is `scripts/maintain-pages-connection.mjs`.
+It checks the current public database connection and login CORS every 30
+seconds. After two failures, it verifies a replacement tunnel, updates the
+existing repository variables, and redeploys Pages. It preserves URL changes
+made concurrently by another administrator and rolls back its own variable
+updates if it cannot trigger deployment. Credentials come from Git Credential
+Manager and are not written to files. Run this automation only after approving
+ongoing public tunnel creation and GitHub deployments.
+
+Put `cloudflared.exe` in `.pages-runtime`, then run
+`powershell -File scripts/start-pages-connection.ps1` to start the proxy and
+monitor. The `AgriTech Pages Recovery` Windows task on this computer starts
+them at user sign-in. Logs are in `.pages-runtime/recovery.log`. This provides
+automatic recovery while the computer and APIs are running, rather than
+permanent hosting; tunnel replacement still requires a Pages redeployment.
+
+Older databases also require `scripts/migrate-legacy-pages-schema.sql`, which
+adds missing authentication and supplier columns without changing existing
+IDs or deleting records. Both server deployment workflows apply this migration.
+Existing accounts without a saved password hash still need a password reset;
+adding a column cannot reconstruct a missing password.
+
 PostgreSQL schema for the Agri Tech platform: farmers, suppliers, supplier
 products, income/expense tracking, and group buying orders.
 

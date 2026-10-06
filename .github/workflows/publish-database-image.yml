@@ -322,6 +322,7 @@ jobs:
             docker exec agritech_db psql -U agritech_user -d agritech -c 'ALTER TABLE farmers ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);' || echo MIGRATION_FAILED
             docker exec agritech_db psql -U agritech_user -d agritech -c 'ALTER TABLE farmers ADD COLUMN IF NOT EXISTS country VARCHAR(100), ADD COLUMN IF NOT EXISTS province VARCHAR(100);' || echo MIGRATION_FAILED
             echo --- verify frontend on VPS ---
+            docker exec -i agritech_db psql -v ON_ERROR_STOP=1 -U agritech_user -d agritech < scripts/migrate-legacy-pages-schema.sql || { echo MIGRATION_FAILED; exit 1; }
             for i in \$(seq 1 15); do
               if curl --silent --show-error --fail --max-time 3 http://127.0.0.1/ >/dev/null; then
                 echo FRONTEND_READY
