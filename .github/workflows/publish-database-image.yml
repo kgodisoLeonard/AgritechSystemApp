@@ -10,6 +10,7 @@ env:
   DB_IMAGE: ghcr.io/kgodisoleonard/agritech-db
   API_IMAGE: ghcr.io/kgodisoleonard/agritech-api
   AI_IMAGE: ghcr.io/kgodisoleonard/agritech-finance-ai
+  LANGCHAIN_IMAGE: ghcr.io/kgodisoleonard/agritech-langchain
   ML_IMAGE: ghcr.io/kgodisoleonard/agritech-ml-service
   LEMA_IMAGE: ghcr.io/kgodisoleonard/agritech-lema-frontend
 
@@ -71,6 +72,16 @@ jobs:
           tags: |
             ${{ env.AI_IMAGE }}:latest
             ${{ env.AI_IMAGE }}:${{ github.sha }}
+
+      - name: Build and push LangChain service image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./langchain-service
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.LANGCHAIN_IMAGE }}:latest
+            ${{ env.LANGCHAIN_IMAGE }}:${{ github.sha }}
 
       - name: Build and push ML service image
         uses: docker/build-push-action@v6

@@ -11,6 +11,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class ChatService {
     private final RestClient ollama;
+    private final RestClient langchain;
     private final String model;
     private final FarmKnowledgeService knowledge;
     private static final String SYSTEM = """
@@ -27,8 +28,10 @@ public class ChatService {
             """;
 
     public ChatService(RestClient.Builder builder, @Value("${ai.base-url}") String baseUrl,
-            @Value("${ai.model}") String model, FarmKnowledgeService knowledge) {
+            @Value("${ai.model}") String model, FarmKnowledgeService knowledge,
+            @Value("${ai.langchain-url}") String langchainUrl) {
         this.ollama = builder.baseUrl(baseUrl).build();
+        this.langchain = builder.clone().baseUrl(langchainUrl).build();
         this.model = model;
         this.knowledge = knowledge;
     }
@@ -70,7 +73,7 @@ public class ChatService {
 
     private ChatResponse generate(String prompt, java.util.List<ChatResponse.Source> sources) {
         try {
-            OllamaGenerateResponse result = ollama.post()
+            OllamaGenerateResponse result = langchain.post()
                     .uri("/api/generate")
                     .body(new OllamaGenerateRequest(model, prompt, false, SYSTEM,
                             java.util.Map.of("temperature", 0.1, "num_predict", 250)))

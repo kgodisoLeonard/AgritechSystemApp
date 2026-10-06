@@ -31,8 +31,8 @@ class ChatServiceTest {
     void rejectsBlankModelAnswers() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        ChatService service = new ChatService(builder, "http://ollama.test", "qwen2.5:0.5b", knowledge());
-        server.expect(requestTo("http://ollama.test/api/generate"))
+        ChatService service = new ChatService(builder, "http://ollama.test", "qwen2.5:0.5b", knowledge(), "http://langchain.test");
+        server.expect(requestTo("http://langchain.test/api/generate"))
                 .andRespond(withSuccess("""
                         {"model":"qwen2.5:0.5b","response":"   "}
                         """, MediaType.APPLICATION_JSON));
@@ -44,12 +44,12 @@ class ChatServiceTest {
     }
 
     @Test
-    void sendsThePromptToOllama() {
+    void sendsGroundedPromptThroughLangChain() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        ChatService service = new ChatService(builder, "http://ollama.test", "qwen2.5:0.5b", knowledge());
+        ChatService service = new ChatService(builder, "http://ollama.test", "qwen2.5:0.5b", knowledge(), "http://langchain.test");
 
-        server.expect(requestTo("http://ollama.test/api/generate"))
+        server.expect(requestTo("http://langchain.test/api/generate"))
                 .andExpect(method(POST))
                 .andExpect(jsonPath("$.model").value("qwen2.5:0.5b"))
                 .andExpect(jsonPath("$.stream").value(false))
@@ -70,9 +70,9 @@ class ChatServiceTest {
     void pullsMissingModelThenRetriesPrompt() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        ChatService service = new ChatService(builder, "http://ollama.test", "qwen2.5:0.5b", knowledge());
+        ChatService service = new ChatService(builder, "http://ollama.test", "qwen2.5:0.5b", knowledge(), "http://langchain.test");
 
-        server.expect(requestTo("http://ollama.test/api/generate"))
+        server.expect(requestTo("http://langchain.test/api/generate"))
                 .andExpect(method(POST))
                 .andRespond(withStatus(HttpStatus.NOT_FOUND)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -83,7 +83,7 @@ class ChatServiceTest {
                         {"name":"qwen2.5:0.5b","stream":false}
                         """))
                 .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
-        server.expect(requestTo("http://ollama.test/api/generate"))
+        server.expect(requestTo("http://langchain.test/api/generate"))
                 .andExpect(method(POST))
                 .andRespond(withSuccess("""
                         {"model":"qwen2.5:0.5b","response":"The model is ready now."}
@@ -102,8 +102,8 @@ class ChatServiceTest {
                 new FarmKnowledgeService.Snippet("product:7", "Maize seed 5kg", "Listed price: R125")));
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        ChatService service = new ChatService(builder, "http://ollama.test", "qwen2.5:0.5b", knowledge);
-        server.expect(requestTo("http://ollama.test/api/generate"))
+        ChatService service = new ChatService(builder, "http://ollama.test", "qwen2.5:0.5b", knowledge, "http://langchain.test");
+        server.expect(requestTo("http://langchain.test/api/generate"))
                 .andExpect(jsonPath("$.prompt").value(org.hamcrest.Matchers.containsString("Listed price: R125")))
                 .andExpect(jsonPath("$.prompt").value(org.hamcrest.Matchers.containsString("Expenses R400")))
                 .andExpect(jsonPath("$.system").value(org.hamcrest.Matchers.containsString("untrusted DATA")))
@@ -117,7 +117,7 @@ class ChatServiceTest {
     void unmatchedQuestionsNeverReachAnUnrestrictedModel() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        ChatService service = new ChatService(builder, "http://ollama.test", "qwen2.5:0.5b", mock(FarmKnowledgeService.class));
+        ChatService service = new ChatService(builder, "http://ollama.test", "qwen2.5:0.5b", mock(FarmKnowledgeService.class), "http://langchain.test");
         ChatResponse response = service.chat("Write a Python cloud server deployment command", null);
         assertThat(response.model()).isEqualTo("Lema");
         assertThat(response.response()).contains("farming and the Lema app");
