@@ -8,6 +8,8 @@ Before calling Qwen, `FarmKnowledgeService` uses PostgreSQL English full-text se
 
 The response includes `model`, `response` and `sources` (source IDs and titles). Sources identify material supplied to the model, not independently verified citations for every generated sentence. The frontend displays these titles beneath the answer.
 
+Questions with no matching source are not sent to an unrestricted model: the API returns a farming/app redirect labelled `Lema` rather than falsely attributing it to Qwen. Expand the guide corpus to support additional farming topics.
+
 The curated guides live in `FarmKnowledgeService.java`. Update them when app behaviour changes. They provide general guidance, not current weather, pesticide prescriptions, guaranteed yields or locally verified planting schedules. Catalogue data is retrieved fresh on each question; a listing does not prove stock availability.
 
 Run focused tests with `./mvnw -Dtest=ChatServiceTest,FarmKnowledgeServiceTest test`.

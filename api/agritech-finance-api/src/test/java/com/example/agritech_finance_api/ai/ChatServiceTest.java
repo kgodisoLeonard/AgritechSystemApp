@@ -20,11 +20,18 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
 
 class ChatServiceTest {
+    private FarmKnowledgeService knowledge() {
+        FarmKnowledgeService knowledge = mock(FarmKnowledgeService.class);
+        when(knowledge.retrieve(org.mockito.ArgumentMatchers.anyString())).thenReturn(java.util.List.of(
+                new FarmKnowledgeService.Snippet("guide:rotation", "Crop rotation", "Alternate crop families.")));
+        return knowledge;
+    }
+
     @Test
     void rejectsBlankModelAnswers() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        ChatService service = new ChatService(builder, "http://ollama.test", "qwen2.5:0.5b", mock(FarmKnowledgeService.class));
+        ChatService service = new ChatService(builder, "http://ollama.test", "qwen2.5:0.5b", knowledge());
         server.expect(requestTo("http://ollama.test/api/generate"))
                 .andRespond(withSuccess("""
                         {"model":"qwen2.5:0.5b","response":"   "}
@@ -40,7 +47,7 @@ class ChatServiceTest {
     void sendsThePromptToOllama() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        ChatService service = new ChatService(builder, "http://ollama.test", "qwen2.5:0.5b", mock(FarmKnowledgeService.class));
+        ChatService service = new ChatService(builder, "http://ollama.test", "qwen2.5:0.5b", knowledge());
 
         server.expect(requestTo("http://ollama.test/api/generate"))
                 .andExpect(method(POST))
@@ -48,7 +55,7 @@ class ChatServiceTest {
                 .andExpect(jsonPath("$.stream").value(false))
                 .andExpect(jsonPath("$.system").value(org.hamcrest.Matchers.containsString("ONLY for agriculture")))
                 .andExpect(jsonPath("$.prompt").value(org.hamcrest.Matchers.containsString("Explain crop rotation")))
-                .andExpect(jsonPath("$.prompt").value(org.hamcrest.Matchers.containsString("No matching sources found")))
+                .andExpect(jsonPath("$.prompt").value(org.hamcrest.Matchers.containsString("Source: Crop rotation")))
                 .andRespond(withSuccess("""
                         {"model":"qwen2.5:0.5b","response":"Crop rotation alternates crops."}
                         """, MediaType.APPLICATION_JSON));
@@ -63,7 +70,7 @@ class ChatServiceTest {
     void pullsMissingModelThenRetriesPrompt() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        ChatService service = new ChatService(builder, "http://ollama.test", "qwen2.5:0.5b", mock(FarmKnowledgeService.class));
+        ChatService service = new ChatService(builder, "http://ollama.test", "qwen2.5:0.5b", knowledge());
 
         server.expect(requestTo("http://ollama.test/api/generate"))
                 .andExpect(method(POST))
@@ -103,6 +110,18 @@ class ChatServiceTest {
                 .andRespond(withSuccess("{\"model\":\"qwen2.5:0.5b\",\"response\":\"Maize seed is listed at R125.\"}", MediaType.APPLICATION_JSON));
         ChatResponse response = service.chat("What seed can I buy?", "Expenses R400");
         assertThat(response.sources()).containsExactly(new ChatResponse.Source("product:7", "Maize seed 5kg"));
+        server.verify();
+    }
+
+    @Test
+    void unmatchedQuestionsNeverReachAnUnrestrictedModel() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        ChatService service = new ChatService(builder, "http://ollama.test", "qwen2.5:0.5b", mock(FarmKnowledgeService.class));
+        ChatResponse response = service.chat("Write a Python cloud server deployment command", null);
+        assertThat(response.model()).isEqualTo("Lema");
+        assertThat(response.response()).contains("farming and the Lema app");
+        assertThat(response.sources()).isEmpty();
         server.verify();
     }
 }

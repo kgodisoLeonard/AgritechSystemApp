@@ -35,6 +35,12 @@ public class ChatService {
 
     public ChatResponse chat(String prompt, String context) {
         java.util.List<FarmKnowledgeService.Snippet> snippets = knowledge.retrieve(prompt);
+        if (snippets.isEmpty()) {
+            return new ChatResponse("Lema", "I can help with farming and the Lema app. "
+                    + "I could not find matching farming or app information for that question. "
+                    + "Please ask about crop seeds, fertiliser, irrigation, your farm ledger, suppliers or group buying.",
+                    java.util.List.of());
+        }
         String finalPrompt = buildPrompt(prompt, context, snippets);
         java.util.List<ChatResponse.Source> sources = snippets.stream()
                 .map(s -> new ChatResponse.Source(s.id(), s.title())).toList();
