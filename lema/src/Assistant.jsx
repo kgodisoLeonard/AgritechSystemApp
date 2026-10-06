@@ -1,33 +1,6 @@
 import { useState } from 'react';
 import { askAI, getFarmerAnomalies, getFarmerClusters, getNearestFarmers } from './api/client';
-
-// Short, real summary of the farmer's own numbers so answers are grounded.
-function buildFarmContext(entries) {
-  if (!entries?.length) return undefined;
-  const byMonth = {};
-  for (const e of entries) {
-    byMonth[e.month] ??= { sales: 0, expenses: 0 };
-    if (e.type === 'sale') byMonth[e.month].sales += e.amount;
-    else byMonth[e.month].expenses += e.amount;
-  }
-  const months = Object.keys(byMonth).sort().slice(-3);
-  if (!months.length) return undefined;
-  const totals = months.reduce(
-    (acc, m) => ({ sales: acc.sales + byMonth[m].sales, expenses: acc.expenses + byMonth[m].expenses }),
-    { sales: 0, expenses: 0 },
-  );
-  const byCategory = {};
-  for (const e of entries) {
-    if (e.type !== 'expense') continue;
-    byCategory[e.category || 'general'] = (byCategory[e.category || 'general'] || 0) + e.amount;
-  }
-  const topCategory = Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0];
-  const parts = [
-    `Over the last ${months.length} month(s): R${totals.sales} in sales, R${totals.expenses} in expenses, profit R${totals.sales - totals.expenses}.`,
-  ];
-  if (topCategory) parts.push(`Biggest expense category: ${topCategory[0]} (R${topCategory[1]}).`);
-  return parts.join(' ');
-}
+import { buildFarmContext } from './farmContext';
 
 export default function Assistant({ entries }) {
   const [prompt, setPrompt] = useState('');
@@ -58,7 +31,7 @@ export default function Assistant({ entries }) {
       setFailedPrompt(mine);
       return;
     }
-    setChat((c) => [...c, { who: 'ai', text: data.response, model: data.model }]);
+    setChat((c) => [...c, { who: 'ai', text: data.response, model: data.model, sources: data.sources }]);
   };
 
   const ask = (ev) => {
@@ -111,6 +84,7 @@ export default function Assistant({ entries }) {
             <p key={i} className={'bubble ' + m.who}>
               {m.text}
               {m.model && <small className="muted">{m.model}</small>}
+              {m.sources?.length > 0 && <small className="muted">Sources: {m.sources.map((s) => s.title).join('; ')}</small>}
             </p>
           ))}
           {busy && <p className="bubble ai">Thinking...</p>}

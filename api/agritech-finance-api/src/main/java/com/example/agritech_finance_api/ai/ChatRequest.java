@@ -1,6 +1,7 @@
 package com.example.agritech_finance_api.ai;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
-public record ChatRequest(@NotBlank String prompt, String context) {
+public record ChatRequest(@NotBlank @Size(max = 2000) String prompt, @Size(max = 6000) String context) {
 }

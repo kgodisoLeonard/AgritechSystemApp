@@ -27,7 +27,7 @@ jobs:
           java-version: "17"
           cache: maven
       - name: Test Ollama integration
-        run: ./mvnw -Dtest=ChatServiceTest test
+        run: ./mvnw -Dtest=ChatServiceTest,FarmKnowledgeServiceTest test
       - name: Package Spring Boot service
         run: ./mvnw -DskipTests package
       - name: Validate Compose configuration

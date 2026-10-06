@@ -1,4 +1,5 @@
 package com.example.agritech_finance_api.ai;
 
-public record ChatResponse(String model, String response) {
+public record ChatResponse(String model, String response, java.util.List<Source> sources) {
+    public record Source(String id, String title) {}
 }
