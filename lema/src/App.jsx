@@ -301,7 +301,7 @@ function AppShell({ farmer, onLogout, entries, groups, suppliers, notifications,
           <Route path="ledger" element={<Ledger entries={entries} onAdd={add} busy={addBusy} error={addError} farmerId={farmer.id} months={months} recoRefreshKey={recoRefreshKey} />} />
           <Route path="groups" element={<Groups groups={groups} joined={joined} onJoin={join} busyId={joinBusyId} error={joinError} />} />
           <Route path="suppliers" element={<Suppliers suppliers={suppliers} notifications={notifications} />} />
-          <Route path="assistant" element={<Assistant entries={entries} />} />
+          <Route path="assistant" element={<Assistant key={farmer.id} entries={entries} farmerId={farmer.id} />} />
           <Route index element={<Ledger entries={entries} onAdd={add} busy={addBusy} error={addError} farmerId={farmer.id} months={months} recoRefreshKey={recoRefreshKey} />} />
         </Routes>
       </main>

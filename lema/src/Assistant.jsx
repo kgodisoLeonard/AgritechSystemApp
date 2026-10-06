@@ -1,19 +1,23 @@
 import { useState } from 'react';
 import { askAI, getFarmerAnomalies, getFarmerClusters, getNearestFarmers } from './api/client';
 import { buildFarmContext } from './farmContext';
+import { ownBuyingGroup, hasRecordedActivity, matchReason, spendingAlert } from './farmerInsights';
 
-export default function Assistant({ entries }) {
+export default function Assistant({ entries, farmerId }) {
   const [prompt, setPrompt] = useState('');
   const [chat, setChat] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [failedPrompt, setFailedPrompt] = useState('');
   const [clusters, setClusters] = useState(null);
-  const [farmerId, setFarmerId] = useState('');
   const [nearest, setNearest] = useState(null);
   const [anomalies, setAnomalies] = useState(null);
-  const [analyticsBusy, setAnalyticsBusy] = useState('');
-  const [analyticsError, setAnalyticsError] = useState('');
+  const [matchesBusy, setMatchesBusy] = useState(false);
+  const [alertsBusy, setAlertsBusy] = useState(false);
+  const [matchesError, setMatchesError] = useState('');
+  const [alertsError, setAlertsError] = useState('');
+  const group = ownBuyingGroup(clusters, farmerId);
+  const profile = nearest?.farmer || group?.farmer;
 
   const sendPrompt = async (mine, retry = false) => {
     if (!mine || busy) return;
@@ -40,34 +44,26 @@ export default function Assistant({ entries }) {
   };
 
   const loadClusters = async () => {
-    setAnalyticsBusy('clusters');
-    setAnalyticsError('');
-    const { data, error: err } = await getFarmerClusters(3);
-    setAnalyticsBusy('');
-    if (err) {
-      setAnalyticsError(err);
-      return;
-    }
-    setClusters(data);
+    if (farmerId == null || matchesBusy) return;
+    setMatchesBusy(true);
+    setMatchesError('');
+    const [groupResult, matchResult] = await Promise.all([
+      getFarmerClusters(3), getNearestFarmers(farmerId, 5),
+    ]);
+    setMatchesBusy(false);
+    setClusters(groupResult.data || null);
+    setNearest(matchResult.data || null);
+    setMatchesError(groupResult.error || matchResult.error || '');
   };
 
-  const loadFarmerSignals = async (ev) => {
-    ev.preventDefault();
-    const id = farmerId.trim();
-    if (!id) return;
-    setAnalyticsBusy('farmer');
-    setAnalyticsError('');
-    const [matchResult, anomalyResult] = await Promise.all([
-      getNearestFarmers(id, 5),
-      getFarmerAnomalies(id),
-    ]);
-    setAnalyticsBusy('');
-    if (matchResult.error || anomalyResult.error) {
-      setAnalyticsError(matchResult.error || anomalyResult.error);
-      return;
-    }
-    setNearest(matchResult.data);
-    setAnomalies(anomalyResult.data);
+  const loadFarmerSignals = async () => {
+    if (farmerId == null || alertsBusy) return;
+    setAlertsBusy(true);
+    setAlertsError('');
+    const result = await getFarmerAnomalies(farmerId);
+    setAlertsBusy(false);
+    setAnomalies(result.data || null);
+    setAlertsError(result.error || '');
   };
 
   return (
@@ -100,63 +96,51 @@ export default function Assistant({ entries }) {
       </div>
 
       <div className="grid ai-grid">
-        <section className="panel">
-          <h3>K-means farmer clustering</h3>
-          <p className="muted">Groups farmers by spending, orders and product behavior.</p>
-          <button className="btn" onClick={loadClusters} disabled={analyticsBusy === 'clusters'}>
-            {analyticsBusy === 'clusters' ? 'Loading...' : 'Load clusters'}
+        <section className="farmer-insights" aria-busy={matchesBusy}>
+          <h2>Similar farmers</h2>
+          <button className="btn" onClick={loadClusters} disabled={matchesBusy || farmerId == null}>
+            {matchesBusy ? 'Finding matches...' : 'Find similar farmers'}
           </button>
-          {clusters?.clusters?.length > 0 && (
-            <div className="cluster-list">
-              {clusters.clusters.map((cluster) => (
-                <article key={cluster.clusterId} className="mini">
-                  <b>Cluster {cluster.clusterId}</b>
-                  <small>{cluster.farmers.length} farmers</small>
-                </article>
-              ))}
-            </div>
+          {matchesError && <p className="error-text" role="alert">Could not load all farmer matches: {matchesError}</p>}
+          {profile && !hasRecordedActivity(profile) && <p className="muted">Not enough recorded activity yet. Add farm expenses or join a group order before comparing your farm.</p>}
+          {hasRecordedActivity(profile) && group && <p className="group-summary">
+            {group.others > 0
+              ? `${group.others} other ${group.others === 1 ? 'farmer has' : 'farmers have'} a spending and buying pattern like yours.`
+              : 'No other farmers are in your spending and buying group yet.'}
+          </p>}
+          {hasRecordedActivity(profile) && nearest?.matches?.length > 0 && (
+              <ul className="list">
+                {nearest.matches.map((m, index) => (
+                  <li key={m.farmer.farmerId}>
+                    <span><b>{m.farmer.name || `Farmer match ${index + 1}`}</b><small>{(m.reasons || []).map(matchReason).join('; ')}</small></span>
+                  </li>
+                ))}
+              </ul>
           )}
-          {clusters && !clusters.clusters?.length && <p className="muted">No farmer records found yet.</p>}
+          {hasRecordedActivity(profile) && nearest && !nearest.matches?.length && <p className="muted">No other farmers are available to compare yet.</p>}
+          {clusters && !clusters.clusters?.length && <p className="muted">No recorded farmer activity is available yet.</p>}
         </section>
 
-        <form className="panel" onSubmit={loadFarmerSignals}>
-          <h3>Nearest matching and anomalies</h3>
-          <div className="inline-form">
-            <input placeholder="Farmer ID" value={farmerId} onChange={(e) => setFarmerId(e.target.value)} />
-            <button className="btn" disabled={analyticsBusy === 'farmer'}>
-              {analyticsBusy === 'farmer' ? 'Checking...' : 'Check'}
-            </button>
-          </div>
-          {analyticsError && <p className="error-text">{analyticsError}</p>}
-          {nearest?.matches?.length > 0 && (
-            <section>
-              <h3>Nearest farmers</h3>
-              <ul className="list">
-                {nearest.matches.map((m) => (
-                  <li key={m.farmer.farmerId}>
-                    <span>{m.farmer.name || m.farmer.farmerId}<small>{m.reasons.join(' / ')}</small></span>
-                    <b>{Math.round(m.similarity * 100)}%</b>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+        <section className="farmer-insights" aria-busy={alertsBusy}>
+          <h2>Spending alerts</h2>
+          <button className="btn" onClick={loadFarmerSignals} disabled={alertsBusy || farmerId == null}>
+            {alertsBusy ? 'Checking your records...' : 'Check my spending'}
+          </button>
+          {alertsError && <p className="error-text" role="alert">Could not check your spending: {alertsError}</p>}
           {anomalies?.anomalies?.length > 0 && (
-            <section>
-              <h3>Anomalies</h3>
               <ul className="list">
-                {anomalies.anomalies.map((a) => (
-                  <li key={`${a.type}-${a.metric}`}>
-                    <span>{a.message}<small>{a.metric}: {a.value}</small></span>
-                    <b className={a.severity === 'high' ? 'neg' : ''}>{a.severity}</b>
-                  </li>
-                ))}
+                {anomalies.anomalies.map((a) => {
+                  const alert = spendingAlert(a);
+                  return <li key={`${a.type}-${a.metric}`}>
+                    <span><b>{alert.title}</b><small>{alert.comparison}</small><small>{alert.action}</small></span>
+                  </li>;
+                })}
               </ul>
-            </section>
           )}
-          {nearest && !nearest.matches?.length && <p className="muted">No nearby farmer matches found.</p>}
-          {anomalies && !anomalies.anomalies?.length && <p className="muted">No unusual signals found.</p>}
-        </form>
+          {anomalies && !anomalies.anomalies?.length && <p className="muted">{hasRecordedActivity(anomalies.farmer)
+            ? 'No spending alerts found in your recorded activity.'
+            : 'No spending or order records to check yet.'}</p>}
+        </section>
       </div>
     </div>
   );

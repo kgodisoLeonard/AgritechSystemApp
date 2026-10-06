@@ -65,6 +65,11 @@ small{display:block;color:var(--muted)}
 .ai-chat textarea{min-height:150px}
 .ai-answer{background:var(--sky);border-radius:12px;padding:12px 14px;margin:14px 0 0;white-space:pre-wrap}
 .cluster-list{display:grid;gap:10px;margin-top:14px}
+.farmer-insights{border-top:1px solid var(--line,#d5e1db);padding:24px 0;min-width:0}
+.farmer-insights h2{font-size:24px;margin:0 0 16px}
+.farmer-insights .btn{min-height:48px;max-width:100%;white-space:normal}
+.farmer-insights .list li{align-items:flex-start;overflow-wrap:anywhere}
+.group-summary{margin:20px 0 12px}
 .mini{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--paper);display:grid;gap:2px}
 .mini span{font-size:14px;color:var(--muted)}
 .inline-form{display:grid;grid-template-columns:minmax(0,1fr) 180px;gap:10px;align-items:start}
