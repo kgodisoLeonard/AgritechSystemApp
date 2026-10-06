@@ -44,6 +44,7 @@ jobs:
           docker exec agritech_db psql -U agritech_user -d agritech -c 'ALTER TABLE farmers ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);'
           docker exec agritech_db psql -U agritech_user -d agritech -c 'ALTER TABLE farmers ADD COLUMN IF NOT EXISTS country VARCHAR(100), ADD COLUMN IF NOT EXISTS province VARCHAR(100);'
           docker exec -i agritech_db psql -v ON_ERROR_STOP=1 -U agritech_user -d agritech < scripts/migrate-legacy-pages-schema.sql
+          docker exec -i agritech_db psql -v ON_ERROR_STOP=1 -U agritech_user -d agritech < scripts/migrate-farmer-text-ids.sql
 
       - name: Verify frontend
         run: |

@@ -71,6 +71,14 @@ IDs or deleting records. Both server deployment workflows apply this migration.
 Existing accounts without a saved password hash still need a password reset;
 adding a column cannot reconstruct a missing password.
 
+`scripts/migrate-farmer-text-ids.sql` also upgrades legacy integer farmer IDs
+to `VARCHAR(36)` for the finance API's UUID registration. Existing numeric
+IDs retain their string values, all farmer foreign keys are recreated and
+validated, and legacy numeric routine calls delegate to text-ID variants.
+The migration is transactional and repeatable; deployments apply it after
+the legacy column migration. Run the isolated PostgreSQL regression test
+with `TEST_DATABASE_URL` set: `node --test backend/test/farmerIdMigration.test.js`.
+
 PostgreSQL schema for the Agri Tech platform: farmers, suppliers, supplier
 products, income/expense tracking, and group buying orders.
 
