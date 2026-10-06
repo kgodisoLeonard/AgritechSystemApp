@@ -9,6 +9,12 @@ on:
 env:
   DB_IMAGE: ghcr.io/kgodisoleonard/agritech-db
   API_IMAGE: ghcr.io/kgodisoleonard/agritech-api
+<<<<<<< HEAD
+=======
+  AI_IMAGE: ghcr.io/kgodisoleonard/agritech-finance-ai
+  ML_IMAGE: ghcr.io/kgodisoleonard/agritech-ml-service
+  LEMA_IMAGE: ghcr.io/kgodisoleonard/agritech-lema-frontend
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
 
 jobs:
   publish-images:
@@ -58,6 +64,43 @@ jobs:
             ${{ env.API_IMAGE }}:latest
             ${{ env.API_IMAGE }}:${{ github.sha }}
 
+<<<<<<< HEAD
+=======
+      - name: Build and push Spring AI image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: api/agritech-finance-api/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.AI_IMAGE }}:latest
+            ${{ env.AI_IMAGE }}:${{ github.sha }}
+
+      - name: Build and push ML service image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./ml-service
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.ML_IMAGE }}:latest
+            ${{ env.ML_IMAGE }}:${{ github.sha }}
+
+      - name: Build and push Lema frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./lema
+          push: true
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            VITE_API_URL=/node/api
+            VITE_FINANCE_API_URL=/fin/api
+          tags: |
+            ${{ env.LEMA_IMAGE }}:latest
+            ${{ env.LEMA_IMAGE }}:${{ github.sha }}
+
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
   vps-secrets:
     runs-on: ubuntu-latest
     outputs:
@@ -79,12 +122,130 @@ jobs:
             echo "configured=false" >> "$GITHUB_OUTPUT"
           fi
 
+<<<<<<< HEAD
+=======
+  # Opens inbound TCP 80 in the Oracle Cloud Security List/NSG in front of the
+  # VPS. This is a cloud-level virtual firewall the VPS's own ufw/iptables
+  # cannot reach, so it must be changed via the OCI API. No-ops (with a
+  # warning) until the OCI_CLI_* repository secrets below are configured,
+  # so it is safe to leave in place either way.
+  open-oci-firewall:
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    env:
+      OCI_CLI_USER: ${{ secrets.OCI_CLI_USER }}
+      OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
+      OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
+      OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
+      OCI_CLI_KEY: ${{ secrets.OCI_CLI_KEY }}
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+    steps:
+      - name: Check OCI CLI secrets
+        id: check
+        run: |
+          if [ -n "$OCI_CLI_USER" ] && [ -n "$OCI_CLI_FINGERPRINT" ] && [ -n "$OCI_CLI_TENANCY" ] && [ -n "$OCI_CLI_REGION" ] && [ -n "$OCI_CLI_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Skipping OCI firewall fix. Configure OCI_CLI_USER, OCI_CLI_FINGERPRINT, OCI_CLI_TENANCY, OCI_CLI_REGION, and OCI_CLI_KEY repository secrets to automate opening TCP 80 in the Oracle Cloud Security List."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install OCI CLI
+        if: steps.check.outputs.configured == 'true'
+        run: pip install --quiet oci-cli
+
+      - name: Configure OCI CLI
+        if: steps.check.outputs.configured == 'true'
+        run: |
+          mkdir -p ~/.oci
+          printf '%s' "$OCI_CLI_KEY" > ~/.oci/key.pem
+          chmod 600 ~/.oci/key.pem
+          cat > ~/.oci/config <<EOF
+          [DEFAULT]
+          user=$OCI_CLI_USER
+          fingerprint=$OCI_CLI_FINGERPRINT
+          tenancy=$OCI_CLI_TENANCY
+          region=$OCI_CLI_REGION
+          key_file=~/.oci/key.pem
+          EOF
+          chmod 600 ~/.oci/config
+
+      - name: Open TCP 80 in the instance's security list
+        if: steps.check.outputs.configured == 'true'
+        env:
+          # Known OCID of the production VPS instance (South Africa Central /
+          # Johannesburg). OCIDs are opaque resource identifiers, not secrets.
+          KNOWN_INSTANCE_ID: ocid1.instance.oc1.af-johannesburg-1.anvg4ljrdllrj7acwmj2wdvtx3wdm2dwht3vzpymzrth2ezej5442t6nolna
+        run: |
+          set -e
+          instance_id="$KNOWN_INSTANCE_ID"
+          echo "Verifying known instance $instance_id is reachable ..."
+          if ! oci compute instance get --instance-id "$instance_id" >/dev/null 2>&1; then
+            echo "Known instance OCID not reachable, falling back to locating by public IP $VPS_HOST ..."
+            instance_id=$(oci search resource-type structured-search \
+              --query-text "query instance resources where lifecycleState = 'RUNNING'" \
+              --query "data.items[*].identifier" --raw-output | tr -d '[]", ' | \
+              while read -r id; do
+                [ -z "$id" ] && continue
+                ip=$(oci compute instance list-vnics --instance-id "$id" \
+                  --query "data[0].\"public-ip\"" --raw-output 2>/dev/null)
+                if [ "$ip" = "$VPS_HOST" ]; then echo "$id"; break; fi
+              done)
+          fi
+          if [ -z "$instance_id" ]; then
+            echo "::error::Could not find the OCI instance (tried known OCID and public IP $VPS_HOST). Check OCI_CLI_TENANCY/region or that the key has been added to the OCI user and the user has network read/update permissions."
+            exit 1
+          fi
+          echo "Found instance $instance_id"
+          subnet_id=$(oci compute instance list-vnics --instance-id "$instance_id" \
+            --query "data[0].\"subnet-id\"" --raw-output)
+          seclist_ids=$(oci network subnet get --subnet-id "$subnet_id" \
+            --query "data.\"security-list-ids\"" --raw-output | tr -d '[]", ')
+          for seclist_id in $seclist_ids; do
+            [ -z "$seclist_id" ] && continue
+            echo "Checking security list $seclist_id ..."
+            has80=$(oci network security-list get --security-list-id "$seclist_id" \
+              --query "data.\"ingress-security-rules\"[?protocol=='6' && \"tcp-options\".\"destination-port-range\".min==\`80\`] | length(@)")
+            if [ "$has80" != "0" ]; then
+              echo "TCP 80 already allowed in $seclist_id - nothing to do."
+              continue
+            fi
+            oci network security-list get --security-list-id "$seclist_id" \
+              --query "data.\"ingress-security-rules\"" > /tmp/current-rules.json
+            python3 -c "
+          import json
+          with open('/tmp/current-rules.json') as f:
+              rules = json.load(f)
+          rules.append({
+              'source': '0.0.0.0/0',
+              'protocol': '6',
+              'isStateless': False,
+              'tcpOptions': {'destinationPortRange': {'min': 80, 'max': 80}}
+          })
+          with open('/tmp/ingress.json', 'w') as f:
+              json.dump(rules, f)
+          "
+            oci network security-list update --security-list-id "$seclist_id" \
+              --ingress-security-rules file:///tmp/ingress.json --force
+            echo "Added TCP 80 ingress rule to $seclist_id."
+          done
+
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
   deploy:
     runs-on: ubuntu-latest
     needs:
       - publish-images
       - vps-secrets
+<<<<<<< HEAD
     if: needs.vps-secrets.outputs.configured == 'true'
+=======
+      - open-oci-firewall
+    # open-oci-firewall is best-effort (opens the cloud-level firewall ahead
+    # of deploy, if its secrets are configured); a failure there must not
+    # block the actual container deploy, which only needs vps-secrets.
+    if: needs.publish-images.result == 'success' && needs.vps-secrets.outputs.configured == 'true'
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
     environment: production
     permissions:
       contents: read
@@ -126,6 +287,22 @@ jobs:
             cd ~/agritech-db
             printf 'POSTGRES_PASSWORD=%s\nNODE_ENV=production\n' '$POSTGRES_PASSWORD' > .env
             chmod 600 .env
+<<<<<<< HEAD
+=======
+            echo --- allow HTTP in host firewall ---
+            if command -v ufw >/dev/null 2>&1; then
+              ufw_status=\$(sudo -n ufw status 2>&1)
+              printf '%s\n' "\$ufw_status"
+              if printf '%s' "\$ufw_status" | grep -q 'Status: active'; then
+                sudo -n ufw allow 80/tcp || echo HOST_FIREWALL_ALLOW_FAILED
+              fi
+            elif command -v firewall-cmd >/dev/null 2>&1 && sudo -n firewall-cmd --state >/dev/null 2>&1; then
+              sudo -n firewall-cmd --permanent --add-service=http || echo HOST_FIREWALL_ALLOW_FAILED
+              sudo -n firewall-cmd --reload || echo HOST_FIREWALL_RELOAD_FAILED
+            else
+              echo NO_ACTIVE_SUPPORTED_HOST_FIREWALL
+            fi
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
             docker login ghcr.io -u '${{ github.actor }}' --password-stdin
             docker compose pull
             echo --- vps architecture ---
@@ -145,6 +322,10 @@ jobs:
             echo --- container detail ---
             docker inspect agritech_db --format 'db state={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restarts={{.RestartCount}}' || echo NO_DB_CONTAINER
             docker inspect agritech_api --format 'api state={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restarts={{.RestartCount}}' || echo NO_API_CONTAINER
+<<<<<<< HEAD
+=======
+            docker inspect agritech_lema_frontend --format 'lema state={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restarts={{.RestartCount}}' || echo NO_LEMA_CONTAINER
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
             echo --- database image ---
             docker image inspect ghcr.io/kgodisoleonard/agritech-db:latest --format 'DB image config digest: {{.Id}}' || echo NO_DB_IMAGE
             echo --- waiting up to 90s for database ---
@@ -156,7 +337,25 @@ jobs:
               echo waiting-for-database
               sleep 3
             done
+<<<<<<< HEAD
             echo --- database container logs ---
+=======
+            echo --- database migrations ---
+            docker exec agritech_db psql -U agritech_user -d agritech -c 'ALTER TABLE farmers ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);' || echo MIGRATION_FAILED
+            docker exec agritech_db psql -U agritech_user -d agritech -c 'ALTER TABLE farmers ADD COLUMN IF NOT EXISTS country VARCHAR(100), ADD COLUMN IF NOT EXISTS province VARCHAR(100);' || echo MIGRATION_FAILED
+            echo --- verify frontend on VPS ---
+            for i in \$(seq 1 15); do
+              if curl --silent --show-error --fail --max-time 3 http://127.0.0.1/ >/dev/null; then
+                echo FRONTEND_READY
+                break
+              fi
+              echo waiting-for-frontend
+              sleep 2
+            done
+            echo --- database container logs ---
+            echo --- verify Qwen through frontend proxy ---
+            docker compose exec -T -e AI_CHAT_URL=http://lema-frontend/fin/api/chat api node --input-type=module < scripts/check-ai.mjs || { echo AI_CHAT_FAILED; exit 1; }
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
             docker logs --tail 60 agritech_db 2>&1 || echo NO_DB_LOGS
             echo --- database compose logs ---
             docker compose logs --tail 40 db 2>&1 || echo NO_COMPOSE_LOGS
@@ -171,9 +370,34 @@ jobs:
             echo "::warning::Schema check failed on the VPS database - the farmers table may be missing."
           fi
           if printf '%s' "$out" | grep -q DATABASE_READY; then
+<<<<<<< HEAD
             echo "VPS deployment verified: agritech_db is accepting connections."
             exit $rc
+=======
+            if printf '%s' "$out" | grep -q FRONTEND_READY; then
+              echo "VPS deployment verified: database is accepting connections and frontend responds on port 80."
+              exit $rc
+            fi
+            echo "::error title=Frontend not responding on VPS port 80::$detail"
+            exit 1
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
           fi
           echo "::error title=VPS host resources::$host"
           echo "::error title=agritech_db NOT accepting connections::$detail"
           exit 1
+<<<<<<< HEAD
+=======
+
+      - name: Verify public frontend access
+        run: |
+          for attempt in $(seq 1 12); do
+            if curl --silent --show-error --fail --max-time 10 "http://${VPS_HOST}/" -o /dev/null; then
+              echo "Public frontend is responding at http://${VPS_HOST}/"
+              exit 0
+            fi
+            echo "Public frontend not reachable yet (attempt ${attempt}/12)."
+            sleep 5
+          done
+          echo "::error::The frontend responds on the VPS but is not reachable from the internet on TCP port 80. Allow inbound HTTP (TCP 80) in the Oracle Cloud NSG/security list and the VPS firewall."
+          exit 1
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596

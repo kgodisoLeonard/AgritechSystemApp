@@ -21,7 +21,11 @@ public class FarmerController {
     @ResponseStatus(HttpStatus.CREATED)
     public FarmerResponse register(@RequestBody RegisterRequest request) {
         return new FarmerResponse(farmerService.register(
+<<<<<<< HEAD
                 request.getName(), request.getLocation(), request.getContact(), request.getPassword()));
+=======
+                request.getName(), request.getLocation(), request.getProvince(), request.getCountry(), request.getContact(), request.getPassword()));
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
     }
 
     @PostMapping("/login")

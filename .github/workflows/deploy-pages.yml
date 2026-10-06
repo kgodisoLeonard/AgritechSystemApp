@@ -1,0 +1,75 @@
+name: Deploy frontend to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ['lema/**', 'scripts/check-ai.mjs', 'scripts/check-pages-api.mjs', '.github/workflows/deploy-pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate HTTPS backend URLs
+        env:
+          VITE_API_URL: ${{ vars.LEMA_API_URL }}
+          VITE_FINANCE_API_URL: ${{ vars.LEMA_FINANCE_API_URL }}
+        run: |
+          node --input-type=module <<'JS'
+          for (const name of ['VITE_API_URL', 'VITE_FINANCE_API_URL']) {
+            const url = new URL(process.env[name]);
+            if (url.protocol !== 'https:' || ['localhost', '127.0.0.1', '::1', '[::1]'].includes(url.hostname)) {
+              throw new Error(`${name} must be a public HTTPS API URL. Configure the LEMA_API_URL and LEMA_FINANCE_API_URL repository variables.`);
+            }
+          }
+          JS
+
+      - name: Verify core APIs and login CORS
+        env:
+          VITE_API_URL: ${{ vars.LEMA_API_URL }}
+          VITE_FINANCE_API_URL: ${{ vars.LEMA_FINANCE_API_URL }}
+          AI_CHAT_ORIGIN: https://kgodisoleonard.github.io
+        run: node scripts/check-pages-api.mjs
+
+      - name: Check optional Qwen chat
+        continue-on-error: true
+        env:
+          AI_CHAT_URL: ${{ vars.LEMA_FINANCE_API_URL }}/chat
+          AI_CHAT_ORIGIN: https://kgodisoleonard.github.io
+        run: node scripts/check-ai.mjs
+      - name: Build
+        working-directory: lema
+        env:
+          VITE_BASE: /AgritechSystemApp/
+          VITE_API_URL: ${{ vars.LEMA_API_URL }}
+          VITE_FINANCE_API_URL: ${{ vars.LEMA_FINANCE_API_URL }}
+        run: |
+          npm install
+          npm run build
+          cp dist/index.html dist/404.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: lema/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

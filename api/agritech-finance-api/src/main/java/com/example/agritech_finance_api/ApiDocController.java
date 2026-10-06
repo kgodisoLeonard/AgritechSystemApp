@@ -35,7 +35,19 @@ public class ApiDocController {
                 "<h2>Finance Endpoints</h2>" +
                 "<div class=\"endpoint\"><span class=\"badge-post\">POST</span><span class=\"path\">/finance/expenses</span><span class=\"desc\">Log a new farm expense (JSON body required)</span></div>" +
                 "<div class=\"endpoint\"><span class=\"badge-get\">GET</span><span class=\"path\">/finance/expenses?farmerId={id}</span><span class=\"desc\">Retrieve all expenses logged for a specific farmer</span></div>" +
+<<<<<<< HEAD
                 "</body>" +
                 "</html>";
     }
 }
+=======
+                "<h2>AI Endpoints</h2>" +
+                "<div class=\"endpoint\"><span class=\"badge-post\">POST</span><span class=\"path\">/api/chat</span><span class=\"desc\">Ask the configured Ollama LLM a question</span></div>" +
+                "<div class=\"endpoint\"><span class=\"badge-get\">GET</span><span class=\"path\">/api/ai/farmer-clusters?k=3</span><span class=\"desc\">Cluster farmers with an in-service K-means model</span></div>" +
+                "<div class=\"endpoint\"><span class=\"badge-get\">GET</span><span class=\"path\">/api/ai/farmers/{id}/nearest?limit=5</span><span class=\"desc\">Find farmers with the nearest behavior and product signals</span></div>" +
+                "<div class=\"endpoint\"><span class=\"badge-get\">GET</span><span class=\"path\">/api/ai/farmers/{id}/anomalies</span><span class=\"desc\">Detect unusual farmer spending and group-order activity</span></div>" +
+                "</body>" +
+                "</html>";
+    }
+}
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596

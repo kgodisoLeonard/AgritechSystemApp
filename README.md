@@ -1,5 +1,54 @@
 # Agri Tech Database
 
+## Qwen Assistant And GitHub Pages
+
+The assistant sends `POST /chat` with `{ "prompt": "...", "context": "..." }`
+to the finance API, which calls Ollama's `qwen2.5:0.5b` model. Responses
+contain `model` and `response`; the frontend displays the real model answer.
+
+For local development, run `npm run dev` in `lema`. Vite forwards `/fin/api`
+to `http://localhost:8081/api` and `/node/api` to `http://localhost:3000/api`.
+Docker serves those same paths through nginx.
+
+GitHub Pages hosts static files only. It cannot run Ollama or the Spring API.
+Its HTTPS page requires a public HTTPS backend; `http://localhost:8081`
+and HTTP server IP addresses do not provide that connection.
+
+Expose the running Docker frontend through an HTTPS domain or Cloudflare
+Tunnel, then set these GitHub repository **Actions variables** before deploying Pages:
+
+- `LEMA_API_URL=https://YOUR-BACKEND-HOST/node/api`
+- `LEMA_FINANCE_API_URL=https://YOUR-BACKEND-HOST/fin/api`
+
+If exposing the finance API directly instead, use `https://YOUR-FINANCE-HOST/api`
+for `LEMA_FINANCE_API_URL`. Keep the backend and Ollama running while the
+frontend is in use. A temporary tunnel stops working when its process exits.
+Do not expose Ollama port 11434 to browsers.
+
+Verify a real Qwen answer through the frontend's proxy:
+
+```powershell
+$env:AI_CHAT_URL = 'http://localhost:5173/fin/api/chat'
+node scripts/check-ai.mjs
+```
+
+For Pages, use the public HTTPS chat URL and set
+`AI_CHAT_ORIGIN=https://kgodisoleonard.github.io` to check CORS as well.
+The Pages workflow checks a real, nonempty Qwen reply before publishing.
+
+When the APIs run on this Windows computer, `node scripts/pages-api-proxy.mjs`
+provides the Pages CORS connection on `127.0.0.1:8787`. It exposes only
+`/fin/api/chat` by default. Set `ENABLE_DATA_API=true` explicitly to also
+forward the existing farmer, finance, and Node API routes. The proxy checks
+the Pages origin and limits request bodies to 32 KB.
+
+Point Cloudflare Tunnel at `http://127.0.0.1:8787` and use its HTTPS hostname
+in the repository variables above. Both the proxy and tunnel must stay
+running, along with the local APIs and Ollama. A quick tunnel's URL changes
+when restarted, so update both variables and redeploy Pages after restarting
+it. For uninterrupted hosting, use a named tunnel or a server with a stable
+HTTPS domain; a sleeping or powered-off computer cannot answer requests.
+
 PostgreSQL schema for the Agri Tech platform: farmers, suppliers, supplier
 products, income/expense tracking, and group buying orders.
 
@@ -74,6 +123,23 @@ git push -u origin main
 
 ## 2. Run locally with Docker (recommended — no local Postgres install needed)
 
+Quick start on any PC with Docker Desktop and Git:
+
+```bash
+git clone https://github.com/kgodisoLeonard/AgritechSystemApp.git
+cd AgritechSystemApp
+cp .env.example .env        # Windows PowerShell: Copy-Item .env.example .env
+docker compose up -d --build
+```
+
+Then open <http://localhost> and register an account. The first build is slow
+(ML service + AI model download). Everything, including Ask AI, runs locally.
+To share it temporarily, first install cloudflared (`winget install Cloudflare.cloudflared`,
+then reopen the terminal), make sure `http://localhost` already opens the app, then run
+`cloudflared tunnel --url http://localhost:80`. Use the `https://….trycloudflare.com`
+link it prints. If the tunnel errors or the page is blank, `docker compose ps` should
+show every service running (the tunnel only forwards what is already on port 80).
+
 ```bash
 docker compose up -d
 ```
@@ -82,6 +148,41 @@ This builds the container stack and starts:
 
 - PostgreSQL on `localhost:5433`
 - Node API on `localhost:3000`
+<<<<<<< HEAD
+=======
+- Spring Boot finance and AI API on `localhost:8081`
+- Ollama on `localhost:11434`
+
+Set `POSTGRES_PASSWORD` in `.env`, then start everything with:
+
+```bash
+cd api/agritech-finance-api && ./mvnw package && cd ../..
+docker compose up -d --build
+```
+
+On first startup, Compose pulls the lightweight `qwen2.5:0.5b` model. Test the
+chat endpoint after `ollama-model` completes:
+
+```bash
+curl -X POST http://localhost:8081/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"Which vegetables grow well in Johannesburg in summer?"}'
+```
+
+Set `AI_MODEL` in `.env` to select a different Ollama model.
+
+The Spring Boot API also exposes non-training AI analytics endpoints:
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/api/chat` | Send a prompt to the configured Ollama model |
+| `GET` | `/api/ai/farmer-clusters?k=3` | Cluster farmers with K-means from current database records |
+| `GET` | `/api/ai/farmers/{farmerId}/nearest?limit=5` | Find farmers with the closest behavior, product, and location signals |
+| `GET` | `/api/ai/farmers/{farmerId}/anomalies` | Detect unusual expenses, order spend, order activity, and weak data history |
+
+These analytics compute from live records and deliberately do not include a
+training pipeline yet.
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
 
 The schema and seed data are loaded on the first startup of a new database
 volume.
@@ -91,6 +192,10 @@ Container Registry and deploys them to the VPS:
 
 - `ghcr.io/kgodisoleonard/agritech-db`
 - `ghcr.io/kgodisoleonard/agritech-api`
+<<<<<<< HEAD
+=======
+- `ghcr.io/kgodisoleonard/agritech-finance-ai`
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
 
 Before the VPS deployment can run, add these repository secrets in GitHub under
 Settings -> Secrets and variables -> Actions:
@@ -100,6 +205,33 @@ Settings -> Secrets and variables -> Actions:
 - `VPS_SSH_KEY`
 - `POSTGRES_PASSWORD`
 
+<<<<<<< HEAD
+=======
+### Opening the public HTTP port automatically
+
+The VPS's own firewall (ufw/firewalld) is opened automatically during deploy,
+but Oracle Cloud also enforces a separate, cloud-level firewall (a Security
+List or Network Security Group) in front of the instance that the VPS itself
+cannot change. If the site is unreachable on port 80 from the internet while
+still responding locally on the VPS, that cloud-level firewall is the cause.
+
+To let the deploy workflow open it automatically, add these additional
+repository secrets (OCI Console -> Profile -> My profile -> API keys -> Add
+API key, using the public key already generated for this project):
+
+- `OCI_CLI_USER` - the `user` OCID shown after adding the API key
+- `OCI_CLI_FINGERPRINT` - the key fingerprint shown after adding the API key
+- `OCI_CLI_TENANCY` - your tenancy OCID
+- `OCI_CLI_REGION` - e.g. `af-johannesburg-1`
+- `OCI_CLI_KEY` - the private key (`oci_api_key.pem`) paired with that API key
+
+Once all five are set, the `open-oci-firewall` job in
+`.github/workflows/publish-database-image.yml` finds the instance by its
+public IP and adds a TCP 80 ingress rule to its security list on every
+deploy (skipping it if already present). Until then, it just logs a warning
+and the rest of the deploy proceeds unaffected.
+
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
 Then run GitHub -> Actions -> Deploy API stack to VPS -> Run workflow -> main. Check that
 the `deploy` job says success. If the VPS secrets are missing, the workflow will
 still publish the image, but the `deploy` job will be skipped.
@@ -165,6 +297,16 @@ group-order joins and monthly profit boundaries, then rolls everything back.
 `seed.sql`, or `schema_validation.sql`. It spins up Postgres 16 as a service
 container and applies all three files in order, so a broken migration or
 test never merges silently.
+
+## 7. Deploy to a friend's server (self-hosted runner)
+
+If the Oracle server is unreachable, any Linux machine with Docker and open ports 80/3000/8081 can host the app:
+
+1. Repo owner: Settings -> Actions -> Runners -> New self-hosted runner (Linux). Copy the commands.
+2. Server owner: install Docker, create a new folder, run those commands, adding `--labels agritech --name agritech-<yourname>` to `./config.sh`, then `./run.sh`.
+3. Make sure the `POSTGRES_PASSWORD` repository secret is set.
+4. Actions -> "Deploy to self-hosted runner" -> Run workflow.
+5. Open `http://<server-public-ip>/`.
 
 ## 6. Automatic deployment to your VPS
 

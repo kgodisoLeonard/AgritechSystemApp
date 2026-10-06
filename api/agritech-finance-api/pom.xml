@@ -38,6 +38,13 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+<<<<<<< HEAD
+=======
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
         <!-- Added Spring Security Crypto for password hashing -->
         <dependency>
             <groupId>org.springframework.security</groupId>
@@ -64,4 +71,8 @@
         </plugins>
     </build>
 
+<<<<<<< HEAD
 </project>
+=======
+</project>
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596

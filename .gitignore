@@ -3,3 +3,10 @@
 pgdata/
 node_modules/
 target/
+<<<<<<< HEAD
+=======
+__pycache__/
+*.pyc
+
+.playwright-mcp/
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596

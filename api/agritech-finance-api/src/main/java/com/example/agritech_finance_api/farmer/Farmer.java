@@ -23,6 +23,15 @@ public class Farmer {
     @Column(length = 150)
     private String location;
 
+<<<<<<< HEAD
+=======
+    @Column(length = 100)
+    private String province;
+
+    @Column(length = 100)
+    private String country;
+
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
     @Column(length = 100, unique = true)
     private String contact;
 
@@ -50,6 +59,15 @@ public class Farmer {
     public String getLocation() { return location; }
     public void setLocation(String location) { this.location = location; }
 
+<<<<<<< HEAD
+=======
+    public String getProvince() { return province; }
+    public void setProvince(String province) { this.province = province; }
+
+    public String getCountry() { return country; }
+    public void setCountry(String country) { this.country = country; }
+
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
     public String getContact() { return contact; }
     public void setContact(String contact) { this.contact = contact; }
 

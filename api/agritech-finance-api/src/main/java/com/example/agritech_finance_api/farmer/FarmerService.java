@@ -18,7 +18,11 @@ public class FarmerService {
         this.passwordEncoder = passwordEncoder;
     }
 
+<<<<<<< HEAD
     public Farmer register(String name, String location, String contact, String password) {
+=======
+    public Farmer register(String name, String location, String province, String country, String contact, String password) {
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
         if (farmerRepository.findByContact(contact).isPresent()) {
             throw new ResponseStatusException(BAD_REQUEST, "Contact already registered");
         }
@@ -26,6 +30,11 @@ public class FarmerService {
         Farmer farmer = new Farmer();
         farmer.setName(name);
         farmer.setLocation(location);
+<<<<<<< HEAD
+=======
+        farmer.setProvince(province);
+        farmer.setCountry(country);
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
         farmer.setContact(contact);
         farmer.setPasswordHash(passwordEncoder.encode(password));
 

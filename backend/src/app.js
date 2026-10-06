@@ -1,6 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import { query } from './db.js';
+<<<<<<< HEAD
+=======
+import { generateRecommendations } from './recommendations.js';
+import { getLoanReadiness } from './forecast.js';
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
 
 const app = express();
 
@@ -66,6 +71,19 @@ app.post('/api/farmers/:id/expenses', async (req, res) => {
       'INSERT INTO expenses (farmer_id, item, category, amount, date) VALUES ($1, $2, $3, $4, CURRENT_DATE) RETURNING *',
       [req.params.id, item, category, amount]
     );
+<<<<<<< HEAD
+=======
+
+    // Re-cluster farmers by spending pattern so the AI insights panel and
+    // group-buying matches reflect this new expense right away. Clustering
+    // failures must never break the expense save itself.
+    try {
+      await generateRecommendations();
+    } catch (recError) {
+      console.error('Failed to refresh AI recommendations:', recError);
+    }
+
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
     res.status(201).json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -129,8 +147,13 @@ app.get('/api/group-orders', async (_req, res) => {
   try {
     const result = await query(`
       SELECT go.id, go.status, go.target_quantity, go.current_quantity, go.discount_rate,
+<<<<<<< HEAD
              sp.product_name,
              s.name AS supplier_name
+=======
+             go.product_id, sp.product_name, sp.price AS unit_price,
+             go.supplier_id, s.name AS supplier_name, s.location AS supplier_location
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
       FROM group_orders go
       JOIN supplier_products sp ON sp.id = go.product_id
       JOIN suppliers s ON s.id = go.supplier_id
@@ -180,6 +203,27 @@ app.get('/api/farmers/:id/recommendations', async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
+=======
+app.get('/api/farmers/:id/loan-readiness', async (req, res) => {
+  try {
+    const result = await getLoanReadiness(req.params.id);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.post('/api/ai/recommendations/refresh', async (_req, res) => {
+  try {
+    const result = await generateRecommendations();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+>>>>>>> acbe4f2b84647d82b76b7be89e6f4dd255d1c596
 app.get('/api/notifications', async (_req, res) => {
   try {
     const result = await query(`
