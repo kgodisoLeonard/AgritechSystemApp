@@ -8,8 +8,10 @@ import {
 import { Home, HowItWorks, ForSuppliers } from './pages';
 import Auth from './Auth';
 import Assistant from './Assistant';
+import { normalizeLedgerEntry } from './ledgerEntries';
 
-const R = (n) => 'R ' + Math.round(n).toLocaleString('en-ZA');
+const R = (n) => n != null && n !== '' && Number.isFinite(Number(n))
+  ? 'R ' + Math.round(Number(n)).toLocaleString('en-ZA') : 'Amount unavailable';
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const round2 = (n) => Math.round(n * 100) / 100;
 
@@ -120,6 +122,7 @@ function Ledger({ entries, onAdd, busy, error, farmerId, months, recoRefreshKey 
   const [f, setF] = useState({ type: 'expense', item: '', category: 'general', amount: '', location: '' });
   const sales = entries.filter((e) => e.type === 'sale').reduce((a, e) => a + e.amount, 0);
   const costs = entries.filter((e) => e.type === 'expense').reduce((a, e) => a + e.amount, 0);
+  const validAmounts = entries.every((e) => Number.isFinite(e.amount));
   const submit = (ev) => {
     ev.preventDefault();
     onAdd({ ...f, amount: Number(f.amount) });
@@ -129,12 +132,14 @@ function Ledger({ entries, onAdd, busy, error, farmerId, months, recoRefreshKey 
     <div className="grid ledger">
       <section className="hero">
         <p className="hello">Farm profit so far</p>
-        <h1 className={sales - costs >= 0 ? 'pos' : 'neg'}>{R(sales - costs)}</h1>
-        <p>You sold {R(sales)} and spent {R(costs)}. Every entry is backed up to your account, so a lost notebook does not cost you your history.</p>
-        <Chart entries={entries} months={months} />
+        <h1 className={!validAmounts ? 'ledger-unavailable' : sales - costs >= 0 ? 'pos' : 'neg'}>{validAmounts ? R(sales - costs) : 'Unavailable'}</h1>
+        {validAmounts
+          ? <p>You sold {R(sales)} and spent {R(costs)}. Every entry is backed up to your account, so a lost notebook does not cost you your history.</p>
+          : <p role="alert">One or more saved amounts could not be read. Profit and charts are unavailable until those records are corrected.</p>}
+        {validAmounts && <Chart entries={entries} months={months} />}
         <p className="legend"><i className="dot m" /> Sales <i className="dot s" /> Expenses</p>
       </section>
-      <LoanMeter entries={entries} months={months} farmerId={farmerId} refreshKey={recoRefreshKey} />
+      {validAmounts && <LoanMeter entries={entries} months={months} farmerId={farmerId} refreshKey={recoRefreshKey} />}
       <form className="panel" onSubmit={submit}>
         <h3>Log an entry</h3>
         <div className="seg">
@@ -342,8 +347,8 @@ export default function App() {
     let live = true;
     Promise.all([getExpenses(farmer.id), getIncome(farmer.id)]).then(([exp, inc]) => {
       if (!live) return;
-      const expenses = (exp.data || []).map((e) => ({ ...e, type: 'expense', month: monthOf(e.date) }));
-      const income = (inc.data || []).map((e) => ({ ...e, type: 'sale', month: monthOf(e.date) }));
+      const expenses = (exp.data || []).map((e) => ({ ...normalizeLedgerEntry(e, 'expense'), month: monthOf(e.date) }));
+      const income = (inc.data || []).map((e) => ({ ...normalizeLedgerEntry(e, 'sale'), month: monthOf(e.date) }));
       setEntries([...expenses, ...income].sort((a, b) => new Date(a.date) - new Date(b.date)));
     });
     return () => { live = false; };
@@ -385,7 +390,7 @@ export default function App() {
       setAddError(error);
       return;
     }
-    setEntries((p) => [...p, { ...data, type: e.type, month: monthOf(data.date) }]);
+    setEntries((p) => [...p, { ...normalizeLedgerEntry(data, e.type), month: monthOf(data.date) }]);
     if (e.type === 'expense') setRecoRefreshKey((k) => k + 1);
     setToast(e.type === 'expense' ? 'Saved. Checking for farmers buying the same input near you.' : 'Sale saved.');
   };

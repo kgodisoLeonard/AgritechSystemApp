@@ -19,6 +19,7 @@ main{max-width:1120px;margin:0 auto;padding:32px clamp(16px,4vw,32px) 64px}
 .hello{color:var(--maize);font-weight:600;margin:0}
 .hero h1{font-size:clamp(44px,8vw,84px);line-height:1;margin:6px 0 12px}
 .hero h1.neg{color:#FFB4A2}
+.hero h1.ledger-unavailable{font-size:32px;overflow-wrap:anywhere}
 .hero p{max-width:52ch;color:#D5E6DC}
 .chart{width:100%;color:#D5E6DC;margin-top:12px}
 .legend{font-size:14px}
